@@ -1,4 +1,6 @@
 import logging
+import multiprocessing
+
 import numpy as np
 from utils import feature_scale
 
@@ -144,6 +146,8 @@ class GoldOnCarbonGenerator(Generator):
             Depending on the size and number of already generated grains this
             can potentially lead to an infinite loop. Setting this number to
             a finite integer prevents that.
+        n_workers (int): Number of worker processes to spawn during grain
+            drawing.
 
     """
 
@@ -166,10 +170,12 @@ class GoldOnCarbonGenerator(Generator):
         self.bg_fill_offset = 0.1
         self.bg_pm_size = 20
         self.max_grain_candidates = 100
+        self.n_workers = 8
 
         self._margin = 1
         self._step = 7200
         self._rstep = 0.1
+        self.debug = {}
 
     def generate(self, params=None):
         """Generates a visual representation of bright gold grains on carbon
@@ -197,6 +203,7 @@ class GoldOnCarbonGenerator(Generator):
 
         grain_masks = []
         params_ret = []
+        params_cn = []
         r_ = []
         i = 0
         i_ = 0
@@ -218,31 +225,44 @@ class GoldOnCarbonGenerator(Generator):
                 x, y, r, a1, a2, f1, f2 = params[i]
 
             logging.debug("Candidate grain {0}: x={1}, y={2}, r={3:.3f}".format(i_, x, y, r))
-            mask_cn, params_cn = self._draw_grain_mask(r, x, y, a1, a2, f1, f2)
+            mask_cn, params_cn_ = self._draw_grain_mask(r, x, y, a1, a2, f1, f2)
 
             # Discard candidate if there is overlap
             if np.max(grain_mask & mask_cn) == True:
                 logging.debug("Candidate overlaps, discarding.")
                 continue
             else:
-                logging.debug("!! Drawing candidate.")
+                logging.debug("!! Candidate accepted.")
 
-            im = im + self._draw_grain(params_cn)
+            #im = im + self._draw_grain(params_cn)
             grain_mask = grain_mask + mask_cn
             r_.append(r)
             grain_masks.append(mask_cn)
             params_ret.append((x, y, r, a1, a2, f1, f2))
+            params_cn.append(params_cn_)
 
             grain_n = grain_n - 1
             i = i + 1
+        self.debug['grain_mask'] = grain_mask
 
-        # Draw grain fill
+        # Draw all grains
+        logging.debug("Drawing {0} grains using {1} workers.".format(len(params_cn), self.n_workers))
+        if self.n_workers <= 1:
+            for i in params_cn:
+                im = im + self._draw_grain(i)
+        else:
+            with multiprocessing.Pool(self.n_workers) as pool:
+                for i in pool.map(self._draw_grain, params_cn):
+                    im = im + i
+
+        # Draw grain texture
         r_ = np.average(r_)
-        logging.debug("Filling all grains using r={0:.3f}.".format(r_))
+        logging.debug("Drawing grain texture using r={0:.3f}.".format(r_))
+        mxs = int((self.grain_fill_k * self.dim[0]) / r_)
+        fft = self._fft_texture(np.random.random_sample((mxs, mxs)))
+        tx = fft * self.grain_fill_gain
+        self.debug['grain_texture'] = tx
         for m in grain_masks:
-            mxs = int((self.grain_fill_k * self.dim[0]) / r_)
-            fft = self._fft_texture(np.random.random_sample((mxs, mxs)))
-            tx = fft * self.grain_fill_gain
             im = im + np.where(m, tx, 0)
 
         # Draw background
@@ -390,6 +410,7 @@ class GoldOnCarbonGenerator(Generator):
 
         grain_ = np.zeros((self.dim[1], self.dim[0]))
         grain_ = self._slice(grain, grain_, x0_, y0_)
+        logging.debug("Finished drawing grain at x={1}, y={2}, r={0:.3f}.".format(r, lx, ty))
         return grain_
 
     def _fft_texture(self, m):
