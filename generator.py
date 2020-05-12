@@ -251,6 +251,10 @@ class GoldOnCarbonGenerator(Generator):
         tx = (fft * self.bg_fill_gain) + self.bg_fill_offset
         im = im + np.where(~grain_mask, tx, 0)
 
+        # Transform to byte data
+        im = np.clip(im, a_min=0., a_max=1.)
+        im = feature_scale(im, 0, 255, 0., 1., 'uint8')
+
         return im, params_ret
 
     def _draw_grain_mask(self, r, x0, y0, a1, a2, f1, f2):
