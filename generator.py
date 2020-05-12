@@ -324,8 +324,8 @@ class GoldOnCarbonGenerator(Generator):
         return (mask_, (r, d, phi, lx, ty, mask))
 
     def _draw_grain(self, params):
-        """Draws a parametric grain-like shape according to the specified
-        arguments and returns a binary mask of it.
+        """Uses parameters generated during the use of _draw_grain_mask() to
+        generate a simulation of a grain.
 
         Args:
             params (tuple): Accepts the second element of the tuple returned by
