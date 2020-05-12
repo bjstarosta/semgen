@@ -160,8 +160,8 @@ class GoldOnCarbonGenerator(Generator):
         self.grain_a2 = (0, 0.1)
         self.grain_f1 = (0, 2*np.pi)
         self.grain_f2 = (0, 2*np.pi)
-        self.grain_colour = 0.55 # C_g
-        self.grain_edge_colour = 0.85 # C_e
+        self.grain_colour = 0.30 # C_g
+        self.grain_edge_colour = 0.65 # C_e
         self.grain_edge_width = 5 # r_t
         self.grain_edge_steepness = 0.23 # b
         self.grain_fill_k = 3
