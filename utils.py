@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import click
 
 import numpy as np
 import skimage.external.tifffile as tifffile
