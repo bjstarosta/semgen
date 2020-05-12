@@ -267,14 +267,14 @@ def semnoise(ctx, **kwargs):
 
     logging.info("{0:d} images generated in '{1}'.".format(
         i,
-        click.format_filename(os.path.abspath(ctx.obj['image_path']))
+        click.format_filename(os.path.abspath(ctx.obj['dst_path']))
     ))
 
     if ctx.obj['log_params'] == True:
         logging.info("Param file written to '{0}'.".format(
-            click.format_filename(os.path.abspath(ctx.obj['image_path']))
+            click.format_filename(os.path.abspath(ctx.obj['dst_path']))
         ))
-        utils.write_params(ctx.obj['image_path'], prm_log)
+        utils.write_params(ctx.obj['dst_path'], prm_log)
 
 if __name__ == '__main__':
     main(obj={})
