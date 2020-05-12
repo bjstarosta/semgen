@@ -1,6 +1,6 @@
 import numpy as np
 import scipy as sp
-from semgen import load_image
+from utils import load_image
 
 
 class Distorter(object):
