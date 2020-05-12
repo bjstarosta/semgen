@@ -5,15 +5,17 @@ import json
 import numpy as np
 import skimage.external.tifffile as tifffile
 
+import semgen
+
 
 def find_filenames(dir, format=None):
     if format is None:
-        format = IMG_PTRN
+        format = semgen.IMG_PTRN
 
     ret = []
     for root, dirs, files in os.walk(dir):
         for f in files:
-            if not f.endswith(IMG_EXT):
+            if not f.endswith(semgen.IMG_EXT):
                 continue
             d = string_to_dict(f, format)
             if d is None:
@@ -24,16 +26,16 @@ def find_filenames(dir, format=None):
 
 def get_filenames(dir, n, format=None, overwrite=False):
     if format is None:
-        format = IMG_PTRN
+        format = semgen.IMG_PTRN
 
-    format = format + IMG_EXT
+    format = format + semgen.IMG_EXT
     if overwrite == True:
         return _get_filenames(dir, n, 0, format)
 
     i = 0
     for root, dirs, files in os.walk(dir):
         for f in files:
-            if not f.endswith(IMG_EXT):
+            if not f.endswith(semgen.IMG_EXT):
                 continue
             d = string_to_dict(f, format)
             j = int(d['0'])
@@ -58,13 +60,13 @@ def string_to_dict(string, pattern):
     return dict(zip(keys, values))
 
 def read_params(dir):
-    with click.open_file(os.path.join(dir, PARAM_FILE), 'r') as f:
+    with click.open_file(os.path.join(dir, semgen.PARAM_FILE), 'r') as f:
         data = json.load(f)
     return data
 
 def write_params(dir, data):
-    data['_version'] = VERSION
-    with click.open_file(os.path.join(dir, PARAM_FILE), 'w') as f:
+    data['_version'] = semgen.VERSION
+    with click.open_file(os.path.join(dir, semgen.PARAM_FILE), 'w') as f:
         json.dump(data, f, sort_keys=True, indent=4)
 
 def feature_scale(img, a, b, min=None, max=None, type=None):
@@ -97,3 +99,6 @@ def feature_scale(img, a, b, min=None, max=None, type=None):
 def load_image(path):
     with tifffile.TiffFile(path) as tif:
         return tif.asarray()
+
+def save_image(path, img):
+    tifffile.imsave(path, img)

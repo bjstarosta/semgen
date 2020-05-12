@@ -1,6 +1,7 @@
 import numpy as np
 import scipy as sp
-from utils import load_image
+
+import utils
 
 
 class Distorter(object):
@@ -13,11 +14,11 @@ class Distorter(object):
 
     def __iter__(self):
         while len(self._queue) > 0:
-            yield self.distort(load_image(self._queue.pop(0)))
+            yield self.distort(utils.load_image(self._queue.pop(0)))
 
     def __next__(self):
         if len(self._queue) > 0:
-            return self.distort(load_image(self._queue.pop(0)))
+            return self.distort(utils.load_image(self._queue.pop(0)))
         else:
             return
 
@@ -42,11 +43,6 @@ class Distorter(object):
         if x < 0 or x >= im.shape[1] or y < 0 or y >= im.shape[0]:
             return
         im[y, x] = c
-
-    def _loadfile(self, path):
-        with tifffile.TiffFile('/home/bjs/python/test/Nouf data/26.09.13 nanodash aligned set 1/SH4_3C1.TIF') as tif:
-            img = tif.asarray()
-
 
 class SEMNoiseGenerator(Distorter):
     """Simulates SEM imaging distortion (focus blur, drift, vibration, noise)

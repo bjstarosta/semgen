@@ -2,7 +2,7 @@ import logging
 import multiprocessing
 
 import numpy as np
-from utils import feature_scale
+import utils
 
 
 class Generator(object):
@@ -273,7 +273,7 @@ class GoldOnCarbonGenerator(Generator):
 
         # Transform to byte data
         im = np.clip(im, a_min=0., a_max=1.)
-        im = feature_scale(im, 0, 255, 0., 1., 'uint8')
+        im = utils.feature_scale(im, 0, 255, 0., 1., 'uint8')
 
         return im, params_ret
 

@@ -3,7 +3,7 @@ import click
 
 import generator
 import distorter
-from utils import find_filenames, get_filenames, read_params, write_params
+import utils
 
 
 VERSION = 0.1
@@ -105,7 +105,7 @@ def generate(ctx, **kwargs):
     ctx.obj['image_path'] = kwargs['destination_dir']
     ctx.obj['image_dim'] = kwargs['dim']
     ctx.obj['image_n'] = kwargs['number']
-    ctx.obj['to_write'] = get_filenames(
+    ctx.obj['to_write'] = utils.get_filenames(
         ctx.obj['image_path'],
         ctx.obj['image_n'],
         overwrite=kwargs['overwrite']
@@ -157,7 +157,7 @@ def gold(ctx, **kwargs):
     with pbar as gen_:
         i = 0
         for im, params in gen_:
-            tifffile.imsave(ctx.obj['to_write'][i], im)
+            utils.save_image(ctx.obj['to_write'][i], im)
             prm_log['params'].append(params)
             i = i + 1
 
@@ -170,7 +170,7 @@ def gold(ctx, **kwargs):
         logging.info("Param file written to '{0}'.".format(
             click.format_filename(os.path.abspath(ctx.obj['image_path']))
         ))
-        write_params(ctx.obj['image_path'], prm_log)
+        utils.write_params(ctx.obj['image_path'], prm_log)
 
 @main.group()
 @click.argument(
@@ -215,8 +215,8 @@ def distort(ctx, **kwargs):
     """
     ctx.obj['src_path'] = kwargs['source_dir']
     ctx.obj['dst_path'] = kwargs['destination_dir']
-    ctx.obj['to_read'] = find_filenames(ctx.obj['src_path'])
-    ctx.obj['to_write'] = get_filenames(
+    ctx.obj['to_read'] = utils.find_filenames(ctx.obj['src_path'])
+    ctx.obj['to_write'] = utils.get_filenames(
         ctx.obj['dst_path'],
         len(ctx.obj['to_read']),
         overwrite=kwargs['overwrite']
@@ -260,7 +260,7 @@ def semnoise(ctx, **kwargs):
         i = 0
         for im, params in dst_:
             #im = feature_scale(im, 0, 255, 0., 1., 'uint8')
-            tifffile.imsave(ctx.obj['to_write'][i], im)
+            utils.save_image(ctx.obj['to_write'][i], im)
             prm_log['params'].append(params)
             i = i + 1
 
@@ -273,7 +273,7 @@ def semnoise(ctx, **kwargs):
         logging.info("Param file written to '{0}'.".format(
             click.format_filename(os.path.abspath(ctx.obj['image_path']))
         ))
-        write_params(ctx.obj['image_path'], prm_log)
+        utils.write_params(ctx.obj['image_path'], prm_log)
 
 if __name__ == '__main__':
     main(obj={})
