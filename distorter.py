@@ -72,7 +72,7 @@ class SEMNoiseGenerator(Distorter):
         super().__init__()
 
         self.gm_size = 15
-        self.astigmatism_coeff = 1
+        self.astigmatism_coeff = 0.95
         self.astigmatism_rotation = (1/4)*np.pi
         self.A_max = 10
         self.v_complexity = 4

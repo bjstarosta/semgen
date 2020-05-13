@@ -206,10 +206,10 @@ class GoldOnCarbonGenerator(Generator):
         params_cn = []
         r_ = []
         i = 0
-        i_ = 0
+        params_i = 0
         while grain_n > 0:
-            i_ = i_ + 1
-            if i_ > self.max_grain_candidates:
+            i = i + 1
+            if i > self.max_grain_candidates:
                 break
 
             if params is None:
@@ -222,7 +222,7 @@ class GoldOnCarbonGenerator(Generator):
                 f1 = np.random.uniform(self.grain_f1[0], self.grain_f1[1])
                 f2 = np.random.uniform(self.grain_f2[0], self.grain_f2[1])
             else:
-                x, y, r, a1, a2, f1, f2 = params[i]
+                x, y, r, a1, a2, f1, f2 = params[params_i]
 
             logging.debug("Candidate grain {0}: x={1}, y={2}, r={3:.3f}".format(i_, x, y, r))
             mask_cn, params_cn_ = self._draw_grain_mask(r, x, y, a1, a2, f1, f2)
@@ -242,7 +242,7 @@ class GoldOnCarbonGenerator(Generator):
             params_cn.append(params_cn_)
 
             grain_n = grain_n - 1
-            i = i + 1
+            params_i = params_i + 1
         self.debug['grain_mask'] = grain_mask
 
         # Draw all grains
@@ -386,7 +386,7 @@ class GoldOnCarbonGenerator(Generator):
             xy = np.column_stack((x, y)).astype('uint32')
 
             for px, py in xy:
-                cn = (self.grain_colour - self.grain_edge_colour)
+                cn = self.grain_colour - self.grain_edge_colour
                 cd = np.exp(-self.grain_edge_steepness * self.grain_edge_width) - 1
                 c = (cn / cd) * (np.exp(-self.grain_edge_steepness * re) - 1)
                 c = c + self.grain_edge_colour
@@ -420,7 +420,7 @@ class GoldOnCarbonGenerator(Generator):
         return np.fft.ifft2(m).real
 
 
-class GaNSurfaceGenerator(Generator):
+class ECCIDefectGenerator(Generator):
     """Simulates GaN surface images of dislocations.
 
     Attributes:
