@@ -17,18 +17,27 @@ class Generator(object):
 
     def __init__(self):
         self.dim = (400, 400)
+        self.params = []
+        self.params_current = None
         self._queue = 0
+
+    def _advance_queue(self):
+        self._queue -= 1
+        logging.debug("Generating image (Queue: {0})".format(self._queue))
+        if len(self.params) > 0:
+            self.params_current = self.params.pop(0)
+        else:
+            logging.debug("Image generation parameter list empty, autogenerating")
+            self.params_current = self.generate_params()
 
     def __iter__(self):
         while self._queue > 0:
-            self._queue -= 1
-            logging.debug("Generating image (Queue: {0})".format(self._queue))
+            self._advance_queue()
             yield self.generate()
 
     def __next__(self):
         if self._queue > 0:
-            self._queue -= 1
-            logging.debug("Generating image (Queue: {0})".format(self._queue))
+            self._advance_queue()
             return self.generate()
         else:
             return
@@ -48,6 +57,9 @@ class Generator(object):
             return False
         else:
             return True
+
+    def generate_params(self):
+        return {}
 
     def generate(self):
         return
@@ -160,6 +172,7 @@ class GoldOnCarbonGenerator(Generator):
         self.grain_a2 = (0, 0.1)
         self.grain_f1 = (0, 2*np.pi)
         self.grain_f2 = (0, 2*np.pi)
+
         self.grain_colour = 0.30 # C_g
         self.grain_edge_colour = 0.65 # C_e
         self.grain_edge_width = 5 # r_t
@@ -177,7 +190,24 @@ class GoldOnCarbonGenerator(Generator):
         self._rstep = 0.1
         self.debug = {}
 
-    def generate(self, params=None):
+    def generate_params(self):
+        params = {
+            'grain_n': np.random.randint(self.grain_n[0], self.grain_n[1]),
+            'grains': []
+        }
+        for i in range(0, params['grain_n']):
+            params['grains'].append({
+                'x': np.random.randint(0, self.dim[0]),
+                'y': np.random.randint(0, self.dim[1]),
+                'r': np.random.uniform(self.grain_r[0], self.grain_r[1]),
+                'a1': np.random.uniform(self.grain_a1[0], self.grain_a1[1]),
+                'a2': np.random.uniform(self.grain_a2[0], self.grain_a2[1]),
+                'f1': np.random.uniform(self.grain_f1[0], self.grain_f1[1]),
+                'f2': np.random.uniform(self.grain_f2[0], self.grain_f2[1])
+            })
+        return params
+
+    def generate(self):
         """Generates a visual representation of bright gold grains on carbon
         through a perfect (non-noisy) SEM.
 
@@ -196,36 +226,20 @@ class GoldOnCarbonGenerator(Generator):
         grain_mask = np.zeros((self.dim[1], self.dim[0]), dtype="bool")
 
         # Draw grain shapes
-        if params is None:
-            grain_n = np.random.randint(self.grain_n[0], self.grain_n[1])
-        else:
-            grain_n = len(params)
-
         grain_masks = []
-        params_ret = []
         params_cn = []
-        r_ = []
-        i = 0
-        params_i = 0
-        while grain_n > 0:
-            i = i + 1
+        r_all = []
+        for j in range(0, self.params_current['grain_n']):
+            i = j + 1
             if i > self.max_grain_candidates:
                 break
 
-            if params is None:
-                # Generate grain candidate with randomised parameters
-                x = np.random.randint(0, self.dim[0])
-                y = np.random.randint(0, self.dim[1])
-                r = np.random.uniform(self.grain_r[0], self.grain_r[1])
-                a1 = np.random.uniform(self.grain_a1[0], self.grain_a1[1])
-                a2 = np.random.uniform(self.grain_a2[0], self.grain_a2[1])
-                f1 = np.random.uniform(self.grain_f1[0], self.grain_f1[1])
-                f2 = np.random.uniform(self.grain_f2[0], self.grain_f2[1])
-            else:
-                x, y, r, a1, a2, f1, f2 = params[params_i]
+            g = self.params_current['grains'][j]
 
-            logging.debug("Candidate grain {0}: x={1}, y={2}, r={3:.3f}".format(i_, x, y, r))
-            mask_cn, params_cn_ = self._draw_grain_mask(r, x, y, a1, a2, f1, f2)
+            logging.debug("Candidate grain {0}: x={1}, y={2}, r={3:.3f}".format(
+                i, g['x'], g['y'], g['r']))
+            mask_cn, params_cn_ = self._draw_grain_mask(
+                g['r'], g['x'], g['y'], g['a1'], g['a2'], g['f1'], g['f2'])
 
             # Discard candidate if there is overlap
             if np.max(grain_mask & mask_cn) == True:
@@ -236,13 +250,10 @@ class GoldOnCarbonGenerator(Generator):
 
             #im = im + self._draw_grain(params_cn)
             grain_mask = grain_mask + mask_cn
-            r_.append(r)
+            r_all.append(g['r'])
             grain_masks.append(mask_cn)
-            params_ret.append((x, y, r, a1, a2, f1, f2))
             params_cn.append(params_cn_)
 
-            grain_n = grain_n - 1
-            params_i = params_i + 1
         self.debug['grain_mask'] = grain_mask
 
         # Draw all grains
@@ -256,9 +267,9 @@ class GoldOnCarbonGenerator(Generator):
                     im = im + i
 
         # Draw grain texture
-        r_ = np.average(r_)
-        logging.debug("Drawing grain texture using r={0:.3f}.".format(r_))
-        mxs = int((self.grain_fill_k * self.dim[0]) / r_)
+        r_avg = np.average(r_all)
+        logging.debug("Drawing grain texture using r={0:.3f}.".format(r_avg))
+        mxs = int((self.grain_fill_k * self.dim[0]) / r_avg)
         fft = self._fft_texture(np.random.random_sample((mxs, mxs)))
         tx = fft * self.grain_fill_gain
         self.debug['grain_texture'] = tx
@@ -275,7 +286,7 @@ class GoldOnCarbonGenerator(Generator):
         im = np.clip(im, a_min=0., a_max=1.)
         im = utils.feature_scale(im, 0, 255, 0., 1., 'uint8')
 
-        return im, params_ret
+        return im
 
     def _draw_grain_mask(self, r, x0, y0, a1, a2, f1, f2):
         """Draws a parametric grain-like shape according to the specified

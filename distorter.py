@@ -10,14 +10,26 @@ class Distorter(object):
     Subclasses become iterators operating on a queue."""
 
     def __init__(self):
+        self.params = []
+        self.params_current = None
         self._queue = []
+
+    def _advance_queue(self):
+        logging.debug("Distorting image (Queue: {0})".format(self._queue))
+        if len(self.params) > 0:
+            self.params_current = self.params.pop(0)
+        else:
+            logging.debug("Image generation parameter list empty, autogenerating")
+            self.params_current = self.generate_params()
 
     def __iter__(self):
         while len(self._queue) > 0:
+            self._advance_queue()
             yield self.distort(utils.load_image(self._queue.pop(0)))
 
     def __next__(self):
         if len(self._queue) > 0:
+            self._advance_queue()
             return self.distort(utils.load_image(self._queue.pop(0)))
         else:
             return
@@ -30,6 +42,9 @@ class Distorter(object):
             return False
         else:
             return True
+
+    def generate_params(self):
+        return {}
 
     def distort(self, image):
         return
@@ -79,9 +94,7 @@ class SEMNoiseGenerator(Distorter):
         self.Q_g = 84
         self.Q_p = 21
 
-    def distort(self, image, params=None):
-
-        params_ret = []
+    def distort(self, image):
 
         # Out-of-focus effects (gaussian blur with astigmatism)
         phi_s = (1/4)*np.pi
@@ -161,7 +174,7 @@ class SEMNoiseGenerator(Distorter):
                 px_ = px + (self.Q_g + self.Q_p * np.sqrt(px)) * np.random.normal(0, 0.01)
                 self._setpx(image_, xs, ys, px_)
 
-        return image_, params_ret
+        return image_
 
     def _gaussian_matrix(self, sigma=1, domain=3, step=5, s=1, phi_s=0, norm=False):
         """Returns a matrix of the specified size containing the 2D Gaussian

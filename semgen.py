@@ -157,9 +157,9 @@ def gold(ctx, **kwargs):
     logging.info("Generation begins...")
     with pbar as gen_:
         i = 0
-        for im, params in gen_:
+        for im in gen_:
             utils.save_image(ctx.obj['to_write'][i], im)
-            prm_log['params'].append(params)
+            prm_log['params'].append(gen_.params_current)
             i = i + 1
 
     logging.info("{0:d} images generated in '{1}'.".format(
@@ -259,10 +259,10 @@ def semnoise(ctx, **kwargs):
     logging.info("Distortion begins...")
     with pbar as dst_:
         i = 0
-        for im, params in dst_:
+        for im in dst_:
             #im = feature_scale(im, 0, 255, 0., 1., 'uint8')
             utils.save_image(ctx.obj['to_write'][i], im)
-            prm_log['params'].append(params)
+            prm_log['params'].append(gen_.params_current)
             i = i + 1
 
     logging.info("{0:d} images generated in '{1}'.".format(
