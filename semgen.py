@@ -178,6 +178,14 @@ def gold(ctx, **kwargs):
     type=click.Path(exists=True)
 )
 @click.option(
+    '-d',
+    '--dim',
+    type=(int, int),
+    default=(0, 0),
+    help="""Dimensions (W, H) to resize the distorted images to. Default: 0 0 (no resize applied)""",
+    metavar="W H"
+)
+@click.option(
     '-o',
     '--overwrite',
     is_flag=True,
@@ -209,6 +217,7 @@ def distort(ctx, **kwargs):
     """
     ctx.obj['src_path'] = kwargs['source_dir']
     ctx.obj['dst_path'] = kwargs['destination_dir']
+    ctx.obj['image_resize'] = kwargs['dim']
     ctx.obj['to_read'] = utils.find_filenames(ctx.obj['src_path'])
     ctx.obj['to_write'] = utils.get_filenames(
         ctx.obj['dst_path'],
@@ -240,14 +249,8 @@ def semnoise(ctx, **kwargs):
         'params': []
     }
 
-    # Disable progress bar if verbose or quiet is enabled
-    if ctx.obj['pbar'] == True and ctx.obj['quiet'] == False and ctx.obj['verbose'] == False:
-        pbar = click.progressbar(dst,
-            label='Distorting images...',
-            length=len(ctx.obj['to_read'])
-        )
-    else:
-        pbar = dst
+    distort_images(ctx, dst, prm_log)
+
 
 def generate_images(ctx, gen, prm_log):
     logging.info("Generation begins...")
@@ -277,14 +280,30 @@ def generate_images(ctx, gen, prm_log):
         ))
         utils.write_params(ctx.obj['image_path'], prm_log)
 
+def distort_images(ctx, dst, prm_log):
+    if ctx.obj['image_resize'] != (0, 0):
+        logging.info("Images will be resized to {0:d}:{1:d} pixels.".format(
+            ctx.obj['image_resize'][0], ctx.obj['image_resize'][1]))
+
     logging.info("Distortion begins...")
-    with pbar as dst_:
+
+    with click.progressbar(
+        label='Distorting images...',
+        length=len(ctx.obj['to_read']),
+        show_pos=True
+    ) as pbar:
         i = 0
-        for im in dst_:
+        for im in dst:
             #im = feature_scale(im, 0, 255, 0., 1., 'uint8')
+            if ctx.obj['image_resize'] != (0, 0):
+                im = utils.resize_image(im, ctx.obj['image_resize'])
+
             utils.save_image(ctx.obj['to_write'][i], im)
-            prm_log['params'].append(gen_.params_current)
+            prm_log['params'].append(dst.params_current)
             i = i + 1
+            # Disable progress bar if verbose or quiet is enabled
+            if ctx.obj['pbar'] == True and ctx.obj['quiet'] == False and ctx.obj['verbose'] == False:
+                pbar.update(1)
 
     logging.info("{0:d} images generated in '{1}'.".format(
         i,

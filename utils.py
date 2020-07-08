@@ -4,6 +4,7 @@ import json
 import click
 
 import numpy as np
+import skimage.transform as transform
 import skimage.external.tifffile as tifffile
 
 import semgen
@@ -96,6 +97,9 @@ def feature_scale(img, a, b, min=None, max=None, type=None):
     if type is not None:
         img = img.astype(type)
     return img
+
+def resize_image(im, dim):
+    return transform.resize(im, (dim[1], dim[0]), preserve_range=True)
 
 def load_image(path):
     with tifffile.TiffFile(path) as tif:
