@@ -120,6 +120,25 @@ def generate(ctx, **kwargs):
     ))
 
 @generate.command()
+@click.pass_context
+def gradient(ctx, **kwargs):
+    """Generate gradient images.
+    """
+    logging.info("Generator: gradient")
+
+    gen = generator.GradientGenerator()
+    gen.dim = ctx.obj['image_dim']
+    gen.queue_images(ctx.obj['image_n'])
+
+    prm_log = {
+        'generator': 'gradient',
+        'global': {}, # TODO: dump generator class properties into this
+        'params': []
+    }
+
+    generate_images(ctx, gen, prm_log)
+
+@generate.command()
 @click.option(
     '-gn',
     '--grain-number',
@@ -145,33 +164,7 @@ def gold(ctx, **kwargs):
         'params': []
     }
 
-    # Disable progress bar if verbose or quiet is enabled
-    if ctx.obj['pbar'] == True and ctx.obj['quiet'] == False and ctx.obj['verbose'] == False:
-        pbar = click.progressbar(gen,
-            label='Generating images...',
-            length=ctx.obj['image_n']
-        )
-    else:
-        pbar = gen
-
-    logging.info("Generation begins...")
-    with pbar as gen_:
-        i = 0
-        for im in gen_:
-            utils.save_image(ctx.obj['to_write'][i], im)
-            prm_log['params'].append(gen_.params_current)
-            i = i + 1
-
-    logging.info("{0:d} images generated in '{1}'.".format(
-        i,
-        click.format_filename(os.path.abspath(ctx.obj['image_path']))
-    ))
-
-    if ctx.obj['log_params'] == True:
-        logging.info("Param file written to '{0}'.".format(
-            click.format_filename(os.path.abspath(ctx.obj['image_path']))
-        ))
-        utils.write_params(ctx.obj['image_path'], prm_log)
+    generate_images(ctx, gen, prm_log)
 
 @main.group()
 @click.argument(
@@ -256,6 +249,34 @@ def semnoise(ctx, **kwargs):
     else:
         pbar = dst
 
+def generate_images(ctx, gen, prm_log):
+    logging.info("Generation begins...")
+
+    with click.progressbar(
+        label='Generating images...',
+        length=ctx.obj['image_n'],
+        show_pos=True
+    ) as pbar:
+        i = 0
+        for im in gen:
+            utils.save_image(ctx.obj['to_write'][i], im)
+            prm_log['params'].append(gen.params_current)
+            i = i + 1
+            # Disable progress bar if verbose or quiet is enabled
+            if ctx.obj['pbar'] == True and ctx.obj['quiet'] == False and ctx.obj['verbose'] == False:
+                pbar.update(1)
+
+    logging.info("{0:d} images generated in '{1}'.".format(
+        i,
+        click.format_filename(os.path.abspath(ctx.obj['image_path']))
+    ))
+
+    if ctx.obj['log_params'] == True:
+        logging.info("Param file written to '{0}'.".format(
+            click.format_filename(os.path.abspath(ctx.obj['image_path']))
+        ))
+        utils.write_params(ctx.obj['image_path'], prm_log)
+
     logging.info("Distortion begins...")
     with pbar as dst_:
         i = 0
@@ -275,6 +296,7 @@ def semnoise(ctx, **kwargs):
             click.format_filename(os.path.abspath(ctx.obj['dst_path']))
         ))
         utils.write_params(ctx.obj['dst_path'], prm_log)
+
 
 if __name__ == '__main__':
     main(obj={})
