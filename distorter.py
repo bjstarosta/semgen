@@ -75,10 +75,16 @@ class SEMNoiseGenerator(Distorter):
         astigmatism_coeff (float): Astigmatism coefficient. Values different
             than 1 distort the Gaussian function along either the X or Y axis.
         astigmatism_rotation (float): Astigmatism rotation in radians.
-        A_max (float): Maximum amplitude of the vibration function, or the
-            maximum amount of pixels a drift can occur over.
+        scan_passes (int): Number of times the vibration function is applied
+            to the image. The higher this number is, the lower the probability
+            of there being areas where no pixels have been displaced to on the
+            final image (black lines/pixels), the higher the impact on performance.
         v_complexity (int): The vibration function is a superposition of
             random waves. This is the number of waves in this superposition.
+        A_lim (tuple): Lower and upper limit of the amplitude of the vibration
+            function, or the maximum amount of pixels a drift can occur over.
+        f_lim (tuple): Lower and upper limit of the frequency of the vibration
+            function, or the width of the drift distortion.
         Q_g (int): Coefficient of the Gaussian noise magnitude.
         Q_p (int): Coefficient of the Poisson noise magnitude.
 
@@ -90,50 +96,46 @@ class SEMNoiseGenerator(Distorter):
         self.gm_size = 15
         self.astigmatism_coeff = 0.95
         self.astigmatism_rotation = (1/4)*np.pi
-        self.A_max = 10
+        self.scan_passes = 10
         self.v_complexity = 4
-        self.Q_g = 84
-        self.Q_p = 21
+        self.A_lim = (5, 10)
+        self.f_lim = (20, 25)
+        self.Q_g = 0.0329
+        self.Q_p = 0.0082
+
+        self.debug = {}
 
     def distort(self, image):
 
         # Out-of-focus effects (gaussian blur with astigmatism)
-        phi_s = (1/4)*np.pi
-        p = self._gaussian_matrix(
+        image = sp.ndimage.convolve(image, self.gaussian_matrix(
             step=self.gm_size,
             s=self.astigmatism_coeff,
             phi_s=self.astigmatism_rotation,
             norm=True
-        )
-        image = sp.ndimage.convolve(image, p, mode='reflect')
+        ), mode='reflect')
 
         # Drift and vibration
-        xv = 0
-        yv = 0
-        t = np.linspace(0, 2*np.pi, image.shape[0] * image.shape[1])
-        for i in range(0, self.v_complexity):
-            a_x = self.A_max * np.random.uniform(0, 1)
-            a_y = self.A_max * np.random.uniform(0, 1)
-            f_x = np.random.uniform(image.shape[1] / 5, image.shape[1] / 4)
-            f_y = np.random.uniform(image.shape[0] / 5, image.shape[0] / 4)
-            ph_x = np.random.uniform(0, 2*np.pi)
-            ph_y = np.random.uniform(0, 2*np.pi)
+        t = np.linspace(0, 20*np.pi, image.shape[0] * image.shape[1] * self.scan_passes)
+        xv, yv = self.vibration_function(t, self.v_complexity, self.A_lim, self.f_lim)
 
-            # Vibration function (superposition of random sines)
-            xv = xv + (a_x * np.sin(f_x * t + ph_x))
-            yv = yv + (a_y * np.sin(f_y * t + ph_y))
-
-        #image_ = np.zeros((image.shape[1], image.shape[0]))
         image_ = np.copy(image)
+        image = np.zeros((image.shape[1], image.shape[0]))
         i = 0
         xv_f = np.floor(xv)
         xv_c = np.ceil(xv)
         yv_f = np.floor(yv)
         yv_c = np.ceil(yv)
-        for ys, row in enumerate(image):
-            for xs, px in enumerate(row):
+
+        it = np.nditer(image_, flags=['multi_index'])
+        for j in range(0, self.scan_passes):
+            it.reset()
+            for px in it:
+                xs = it.multi_index[1]
+                ys = it.multi_index[0]
+
                 if xv_f[i] == xv_c[i] and yv_f[i] == yv_c[i]:
-                    self._setpx(image_, int(xs + xv[i]), int(ys + yv[i]), px)
+                    self._setpx(image, int(xs + xv[i]), int(ys + yv[i]), px)
 
                 else:
                     # Bilinear interpolation for fractional pixel values
@@ -155,29 +157,30 @@ class SEMNoiseGenerator(Distorter):
                         ysm = [ys_, ys_]
 
                     coords = np.array([
-                        [self._getpx(image, xsm[0], ysm[0]), self._getpx(image, xsm[1], ysm[0])],
-                        [self._getpx(image, xsm[0], ysm[1]), self._getpx(image, xsm[1], ysm[1])]
+                        [self._getpx(image_, xsm[0], ysm[0]), self._getpx(image_, xsm[1], ysm[0])],
+                        [self._getpx(image_, xsm[0], ysm[1]), self._getpx(image_, xsm[1], ysm[1])]
                     ])
                     px_ = lambda x, y: (np.array([[1-x, x]]) @ coords @ np.array([[1-y, y]]).T)[0][0]
 
                     if None not in coords:
                         #print(px_(0, 0))
-                        self._setpx(image_, xsm[0], ysm[0], px_(0, 0))
-                        self._setpx(image_, xsm[1], ysm[0], px_(1, 0))
-                        self._setpx(image_, xsm[0], ysm[1], px_(0, 1))
-                        self._setpx(image_, xsm[1], ysm[1], px_(1, 1))
+                        self._setpx(image, xsm[0], ysm[0], px_(0, 0))
+                        self._setpx(image, xsm[1], ysm[0], px_(1, 0))
+                        self._setpx(image, xsm[0], ysm[1], px_(0, 1))
+                        self._setpx(image, xsm[1], ysm[1], px_(1, 1))
 
                 i = i + 1
 
         # Gaussian and Poisson noise sum
-        for ys, row in enumerate(image_):
-            for xs, px in enumerate(row):
-                px_ = px + (self.Q_g + self.Q_p * np.sqrt(px)) * np.random.normal(0, 0.01)
-                self._setpx(image_, xs, ys, px_)
+        image = self.noise_cmpnt(image, self.Q_g, self.Q_p)
 
-        return image_
+        self.debug['t'] = t
+        self.debug['xv'] = xv
+        self.debug['yv'] = yv
 
-    def _gaussian_matrix(self, sigma=1, domain=3, step=5, s=1, phi_s=0, norm=False):
+        return image
+
+    def gaussian_matrix(self, sigma=1, domain=3, step=5, s=1, phi_s=0, norm=False):
         """Returns a matrix of the specified size containing the 2D Gaussian
         function.
 
@@ -209,3 +212,76 @@ class SEMNoiseGenerator(Distorter):
             p = p / np.sum(p)
 
         return p
+
+    def vibration_function(self, t, sn, A_lim, f_lim):
+        """Approximates all of the sources of vibration affecting SEM images, and
+        combines them into a superposition of sine functions which can be used
+        for pixel displacement.
+
+        Args:
+            img (ndarray): Array containing image data.
+            t (ndarray): One dimensional array containing all of the temporal
+                datapoints.
+            sn (int): Amount of wave components present in the superposition of
+                sine functions.
+            A_lim (tuple): Lower and upper limit of the amplitude in each
+                wave component.
+            f_lim (tuple): Lower and upper limit of the frequency in each
+                wave component.
+
+        Returns:
+            A tuple containing the x and y components of the vibration function
+            respectively.
+
+        """
+        v = np.vectorize(
+            lambda t, A, f, p: A * np.sin(f * t + p)
+        )
+
+        x_v = 0
+        y_v = 0
+        for i in range(0, sn):
+            x_v = x_v + v(t,
+                np.random.uniform(A_lim[0], A_lim[1]),
+                np.random.uniform(f_lim[0], f_lim[1]),
+                np.random.uniform(0, 2*np.pi)
+            )
+            y_v = y_v + v(t,
+                np.random.uniform(A_lim[0], A_lim[1]),
+                np.random.uniform(f_lim[0], f_lim[1]),
+                np.random.uniform(0, 2*np.pi)
+            )
+
+        return x_v, y_v
+
+    def noise_cmpnt(self, img, gaussian_c, poisson_c):
+        """Approximates all of the sources of noise present in SEM images, and
+        combines them into a single noise component of the form:
+
+            C_3 = C_2 + (Q_g + Q_p * sqrt(C_2)) * R_i
+
+        where C_2 is the grey level of the current pixel, Q_g and Q_p are
+        respectively the gaussian and poisson noise magnitude coefficients,
+        and R_i is a uniform distribution random number.
+
+        Args:
+            img (ndarray): Array containing image data.
+            gaussian_c (float): Gaussian noise magnitude coefficient.
+                Increase this for more background independent noise.
+                Domain is between 0 and 1.
+            poisson_c (float): Poisson noise magnitude coefficient.
+                Increase this for more background dependent noise.
+                Domain is between 0 and 1.
+
+        Returns:
+            An array containing image data with the noise component applied.
+
+        """
+        fn = np.vectorize(
+            lambda x: x + ((gaussian_c + (poisson_c * np.sqrt(x))) * np.random.uniform(-1, 1))
+        )
+
+        img = np.interp(img, (img.min(), img.max()), (0., 1.))
+        img = np.clip(fn(img), a_min=0., a_max=1.)
+        img = np.interp(img, (img.min(), img.max()), (0, 255)).astype(int)
+        return img
