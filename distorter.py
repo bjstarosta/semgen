@@ -106,8 +106,10 @@ class SEMNoiseGenerator(Distorter):
         self.debug = {}
 
     def distort(self, image):
-
         # Out-of-focus effects (gaussian blur with astigmatism)
+        logging.debug("Focus component: gm size={0}, astig. c={1:.3f}, astig. rot={2:.3f}".format(
+            self.gm_size, self.astigmatism_coeff, self.astigmatism_rotation))
+
         image = sp.ndimage.convolve(image, self.gaussian_matrix(
             step=self.gm_size,
             s=self.astigmatism_coeff,
@@ -116,8 +118,12 @@ class SEMNoiseGenerator(Distorter):
         ), mode='reflect')
 
         # Drift and vibration
-        t = np.linspace(0, 20*np.pi, image.shape[0] * image.shape[1] * self.scan_passes)
+        t_end = 2*np.pi * self.scan_passes
+        t = np.linspace(0, t_end, image.shape[0] * image.shape[1] * self.scan_passes)
         xv, yv = self.vibration_function(t, self.v_complexity, self.A_lim, self.f_lim)
+
+        logging.debug("Drift component: scan passes={0}, t size={1}, superposition complexity={2}".format(
+            self.scan_passes, len(t), self.v_complexity))
 
         image_ = np.copy(image)
         image = np.zeros((image.shape[1], image.shape[0]))
@@ -129,6 +135,7 @@ class SEMNoiseGenerator(Distorter):
 
         it = np.nditer(image_, flags=['multi_index'])
         for j in range(0, self.scan_passes):
+            logging.debug("- Raster scan pass {0}".format(j+1))
             it.reset()
             for px in it:
                 xs = it.multi_index[1]
@@ -172,7 +179,9 @@ class SEMNoiseGenerator(Distorter):
                 i = i + 1
 
         # Gaussian and Poisson noise sum
-        image = self.noise_cmpnt(image, self.Q_g, self.Q_p)
+        """logging.debug("Noise component: Poisson coeff.={0:.3f}, Gaussian coeff.={1:.3f}".format(
+            self.Q_g, self.Q_p))
+        image = self.noise_cmpnt(image, self.Q_g, self.Q_p)"""
 
         self.debug['t'] = t
         self.debug['xv'] = xv

@@ -146,8 +146,12 @@ class GradientGenerator(Generator):
     def generate(self):
         p = self.params_current
         if p['type'] == 'linear':
+            logging.debug("Linear gradient: angle={0:.3f} rad ({1:.3f} deg)".format(
+                p['angle'], 180 * p['angle'] / np.pi))
             im = self._linear_gradient(self.dim, p['angle'])
         if p['type'] == 'radial':
+            logging.debug("Radial gradient: origin=x:{0},y:{1}".format(
+                p['origin'][0], p['origin'][1]))
             im = self._radial_gradient(self.dim, p['origin'])
 
         im = utils.feature_scale(im, 0, 255, 0., 1., 'uint8')
