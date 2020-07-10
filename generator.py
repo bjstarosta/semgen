@@ -132,7 +132,8 @@ class GradientGenerator(Generator):
         self.types = ['linear', 'radial']
         self.types_pr = [0.5, 0.5]
         self.random_pos = True
-        self.grey_range = 1
+        self.grey_range = 1.
+        self.grey_limit = (0., 1.)
 
     def generate_params(self):
         p = {
@@ -147,10 +148,10 @@ class GradientGenerator(Generator):
     def generate(self):
         p = self.params_current
 
-        range = (0, 1)
+        range = self.grey_limit
         if self.grey_range < 1:
-            q = 1 - self.grey_range
-            rn = np.random.uniform(0, q)
+            q = range[1] - self.grey_range
+            rn = np.random.uniform(range[0], q)
             range = (rn, rn + self.grey_range)
 
         if p['type'] == 'linear':
