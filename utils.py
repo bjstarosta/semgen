@@ -99,7 +99,7 @@ def feature_scale(img, a, b, min=None, max=None, type=None):
     return img
 
 def resize_image(im, dim):
-    return transform.resize(im, (dim[1], dim[0]), preserve_range=True)
+    return transform.resize(im, (dim[1], dim[0]), preserve_range=True).astype(np.uint8)
 
 def load_image(path):
     with tifffile.TiffFile(path) as tif:
