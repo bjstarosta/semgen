@@ -132,6 +132,7 @@ class GradientGenerator(Generator):
         self.types = ['linear', 'radial']
         self.types_pr = [0.5, 0.5]
         self.random_pos = True
+        self.grey_range = 1
 
     def generate_params(self):
         p = {
@@ -145,14 +146,21 @@ class GradientGenerator(Generator):
 
     def generate(self):
         p = self.params_current
+
+        range = (0, 1)
+        if self.grey_range < 1:
+            q = 1 - self.grey_range
+            rn = np.random.uniform(0, q)
+            range = (rn, rn + self.grey_range)
+
         if p['type'] == 'linear':
             logging.debug("Linear gradient: angle={0:.3f} rad ({1:.3f} deg)".format(
                 p['angle'], 180 * p['angle'] / np.pi))
-            im = self._linear_gradient(self.dim, p['angle'])
+            im = self._linear_gradient(self.dim, p['angle'], range)
         if p['type'] == 'radial':
             logging.debug("Radial gradient: origin=x:{0},y:{1}".format(
                 p['origin'][0], p['origin'][1]))
-            im = self._radial_gradient(self.dim, p['origin'])
+            im = self._radial_gradient(self.dim, p['origin'], range)
 
         im = utils.feature_scale(im, 0, 255, 0., 1., 'uint8')
         return im
@@ -239,14 +247,14 @@ class GoldOnCarbonGenerator(Generator):
         self.grain_f2 = (0, 2*np.pi)
 
         self.grain_colour = 0.30 # C_g
-        self.grain_edge_colour = 0.65 # C_e
+        self.grain_edge_colour = 0.7 # C_e
         self.grain_edge_width = 5 # r_t
-        self.grain_edge_steepness = 0.23 # b
+        self.grain_edge_steepness = 0.43 # b
         self.grain_fill_k = 3
         self.grain_fill_gain = 100
         self.bg_fill_gain = 50
         self.bg_fill_offset = 0.1
-        self.bg_pm_size = 20
+        self.bg_pm_size = 5
         self.max_grain_candidates = 100
         self.n_workers = 8
 
@@ -256,8 +264,12 @@ class GoldOnCarbonGenerator(Generator):
         self.debug = {}
 
     def generate_params(self):
+        #mxs = int((self.grain_fill_k * self.dim[0]) / 175)
+        mxs = int((self.grain_fill_k * 6) / 2) # set by trial and error on a 200x200 image
         params = {
             'grain_n': np.random.randint(self.grain_n[0], self.grain_n[1]),
+            'grain_tex': np.random.random_sample((mxs, mxs)),
+            'bg_tex': np.random.random_sample((self.bg_pm_size, self.bg_pm_size)),
             'grains': []
         }
         for i in range(0, params['grain_n']):
@@ -293,7 +305,6 @@ class GoldOnCarbonGenerator(Generator):
         # Draw grain shapes
         grain_masks = []
         params_cn = []
-        r_all = []
         for j in range(0, self.params_current['grain_n']):
             i = j + 1
             if i > self.max_grain_candidates:
@@ -315,7 +326,6 @@ class GoldOnCarbonGenerator(Generator):
 
             #im = im + self._draw_grain(params_cn)
             grain_mask = grain_mask + mask_cn
-            r_all.append(g['r'])
             grain_masks.append(mask_cn)
             params_cn.append(params_cn_)
 
@@ -332,10 +342,8 @@ class GoldOnCarbonGenerator(Generator):
                     im = im + i
 
         # Draw grain texture
-        r_avg = np.average(r_all)
-        logging.debug("Drawing grain texture using r={0:.3f}.".format(r_avg))
-        mxs = int((self.grain_fill_k * self.dim[0]) / r_avg)
-        fft = self._fft_texture(np.random.random_sample((mxs, mxs)))
+        logging.debug("Drawing grain texture.")
+        fft = self._fft_texture(self.params_current['grain_tex'])
         tx = fft * self.grain_fill_gain
         self.debug['grain_texture'] = tx
         for m in grain_masks:
@@ -343,7 +351,7 @@ class GoldOnCarbonGenerator(Generator):
 
         # Draw background
         logging.debug("Filling background.")
-        fft = self._fft_texture(np.random.random_sample((10, 10)))
+        fft = self._fft_texture(self.params_current['bg_tex'])
         tx = (fft * self.bg_fill_gain) + self.bg_fill_offset
         im = im + np.where(~grain_mask, tx, 0)
 

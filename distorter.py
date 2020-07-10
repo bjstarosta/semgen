@@ -76,15 +76,17 @@ class SEMNoiseGenerator(Distorter):
             than 1 distort the Gaussian function along either the X or Y axis.
         astigmatism_rotation (float): Astigmatism rotation in radians.
         scan_passes (int): Number of times the vibration function is applied
-            to the image. The higher this number is, the lower the probability
-            of there being areas where no pixels have been displaced to on the
-            final image (black lines/pixels), the higher the impact on performance.
+            to the image. Higher number means a more diffuse drift effect at
+            the cost of an increase in processing time.
         v_complexity (int): The vibration function is a superposition of
             random waves. This is the number of waves in this superposition.
         A_lim (tuple): Lower and upper limit of the amplitude of the vibration
             function, or the maximum amount of pixels a drift can occur over.
         f_lim (tuple): Lower and upper limit of the frequency of the vibration
             function, or the width of the drift distortion.
+            Values that are significant when compared to the dimensions of the
+            distorted image will make it more likely that black pixels will
+            appear.
         Q_g (int): Coefficient of the Gaussian noise magnitude.
         Q_p (int): Coefficient of the Poisson noise magnitude.
 
@@ -96,12 +98,14 @@ class SEMNoiseGenerator(Distorter):
         self.gm_size = 15
         self.astigmatism_coeff = 0.95
         self.astigmatism_rotation = (1/4)*np.pi
-        self.scan_passes = 10
+        self.scan_passes = 2
         self.v_complexity = 4
         self.A_lim = (5, 10)
         self.f_lim = (20, 25)
         self.Q_g = 0.0329
         self.Q_p = 0.0082
+        #self.Q_g = 0.0720
+        #self.Q_p = 0.0164
 
         self.debug = {}
 
@@ -116,6 +120,7 @@ class SEMNoiseGenerator(Distorter):
             phi_s=self.astigmatism_rotation,
             norm=True
         ), mode='reflect')
+        self.debug['post-focus'] = np.copy(image)
 
         # Drift and vibration
         t_end = 2*np.pi * self.scan_passes
@@ -126,7 +131,7 @@ class SEMNoiseGenerator(Distorter):
             self.scan_passes, len(t), self.v_complexity))
 
         image_ = np.copy(image)
-        image = np.zeros((image.shape[1], image.shape[0]))
+        #image = np.zeros((image.shape[1], image.shape[0]))
         i = 0
         xv_f = np.floor(xv)
         xv_c = np.ceil(xv)
@@ -178,10 +183,12 @@ class SEMNoiseGenerator(Distorter):
 
                 i = i + 1
 
+        self.debug['post-drift'] = np.copy(image)
+
         # Gaussian and Poisson noise sum
-        """logging.debug("Noise component: Poisson coeff.={0:.3f}, Gaussian coeff.={1:.3f}".format(
+        logging.debug("Noise component: Poisson coeff.={0:.3f}, Gaussian coeff.={1:.3f}".format(
             self.Q_g, self.Q_p))
-        image = self.noise_cmpnt(image, self.Q_g, self.Q_p)"""
+        image = self.noise_cmpnt(image, self.Q_g, self.Q_p)
 
         self.debug['t'] = t
         self.debug['xv'] = xv
@@ -290,7 +297,10 @@ class SEMNoiseGenerator(Distorter):
             lambda x: x + ((gaussian_c + (poisson_c * np.sqrt(x))) * np.random.uniform(-1, 1))
         )
 
-        img = np.interp(img, (img.min(), img.max()), (0., 1.))
+        a = img.max()
+        if isinstance(a, int) or a > 1:
+            img = np.interp(img, (0, 255), (0., 1.))
+
         img = np.clip(fn(img), a_min=0., a_max=1.)
-        img = np.interp(img, (img.min(), img.max()), (0, 255)).astype(int)
+        img = np.interp(img, (0., 1.), (0, 255)).astype(int)
         return img
