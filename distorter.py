@@ -194,7 +194,7 @@ class SEMNoiseGenerator(Distorter):
         self.debug['xv'] = xv
         self.debug['yv'] = yv
 
-        return image
+        return image.astype('uint8')
 
     def gaussian_matrix(self, sigma=1, domain=3, step=5, s=1, phi_s=0, norm=False):
         """Returns a matrix of the specified size containing the 2D Gaussian
