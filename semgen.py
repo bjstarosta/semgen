@@ -56,7 +56,7 @@ def main(ctx, **kwargs):
 @click.argument(
     'destination_dir',
     nargs=1,
-    type=click.Path(exists=True)
+    type=click.Path(exists=True, file_okay=False, readable=True)
 )
 @click.option(
     '-d',
@@ -91,7 +91,7 @@ def main(ctx, **kwargs):
 @click.option(
     '-u',
     '--use-params',
-    type=click.Path(exists=True),
+    type=click.Path(exists=True, dir_okay=False, readable=True),
     help="""If pointed at a previously generated parameters file, will use
         it to attempt to exactly recreate those conditions during this
         batch generation."""
@@ -191,12 +191,12 @@ def gold(ctx, **kwargs):
 @click.argument(
     'source_dir',
     nargs=1,
-    type=click.Path(exists=True)
+    type=click.Path(exists=True, file_okay=False, readable=True)
 )
 @click.argument(
     'destination_dir',
     nargs=1,
-    type=click.Path(exists=True)
+    type=click.Path(exists=True, file_okay=False, writable=True)
 )
 @click.option(
     '-d',
@@ -224,7 +224,7 @@ def gold(ctx, **kwargs):
 @click.option(
     '-u',
     '--use-params',
-    type=click.Path(exists=True),
+    type=click.Path(exists=True, dir_okay=False, readable=True),
     help="""If pointed at a previously generated parameters file, will use
         it to attempt to exactly recreate those conditions during this
         batch generation."""
