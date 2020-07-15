@@ -2,8 +2,8 @@ import os
 import logging
 import click
 
-import generator
-import distorter
+import generators
+import distorters
 import utils
 
 
@@ -145,7 +145,7 @@ def gradient(ctx, **kwargs):
     """
     logging.info("Generator: gradient")
 
-    gen = generator.GradientGenerator()
+    gen = generators.factory('gradient', 'GradientGenerator')
     gen.dim = ctx.obj['image_dim']
     gen.grey_range = kwargs['grey_range']
     gen.grey_limit = kwargs['grey_limit']
@@ -175,7 +175,7 @@ def gold(ctx, **kwargs):
     """
     logging.info("Generator: gold-on-carbon SEM test sample")
 
-    gen = generator.GoldOnCarbonGenerator()
+    gen = generators.factory('goldoncarbon', 'GoldOnCarbonGenerator')
     gen.dim = ctx.obj['image_dim']
     gen.queue_images(ctx.obj['image_n'])
 
@@ -261,7 +261,7 @@ def semnoise(ctx, **kwargs):
     """
     logging.info("Distorter: SEM noise generator")
 
-    dst = distorter.SEMNoiseGenerator()
+    dst = distorters.factory('semnoise', 'SEMNoiseGenerator')
     dst.queue_images(ctx.obj['to_read'])
 
     prm_log = {
