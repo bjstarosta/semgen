@@ -161,6 +161,46 @@ def gradient(ctx, **kwargs):
 
 @generate.command()
 @click.option(
+    '-g',
+    '--grey-range',
+    type=float,
+    default=1.,
+    help="""Range of greys present in the gradient. Default setting generates
+        a black-white gradient, number lower than "1" causes gradients to be
+        generated with a smaller range between the brightest and darkest colour,
+        with the starting point of the range generated randomly. Default: 1"""
+)
+@click.option(
+    '-l',
+    '--grey-limit',
+    type=(float, float),
+    default=(0., 1.),
+    help="""Sets the darkest and brightest possible grey on a floating point scale.
+        Default: 0 1""",
+    metavar="D B"
+)
+@click.pass_context
+def dipole(ctx, **kwargs):
+    """Generate dipole-like images.
+    """
+    logging.info("Generator: dipole")
+
+    gen = generators.factory('dipole', 'DipoleGenerator')
+    gen.dim = ctx.obj['image_dim']
+    gen.grey_range = kwargs['grey_range']
+    gen.grey_limit = kwargs['grey_limit']
+    gen.queue_images(ctx.obj['image_n'])
+
+    prm_log = {
+        'generator': 'dipole',
+        'global': {}, # TODO: dump generator class properties into this
+        'params': []
+    }
+
+    generate_images(ctx, gen, prm_log)
+
+@generate.command()
+@click.option(
     '-gn',
     '--grain-number',
     type=(int, int),
