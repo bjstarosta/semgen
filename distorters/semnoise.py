@@ -48,8 +48,8 @@ class SEMNoiseGenerator(distorters.Distorter):
         self.v_complexity = 4
         self.A_lim = (5, 10)
         self.f_lim = (20, 25)
-        self.Q_g = 0.0329
-        self.Q_p = 0.0082
+        self.Q_g = 0.0129
+        self.Q_p = 0.0422
         #self.Q_g = 0.0720
         #self.Q_p = 0.0164
 
@@ -133,7 +133,7 @@ class SEMNoiseGenerator(distorters.Distorter):
 
         # Gaussian and Poisson noise sum
         logging.debug("Noise component: Poisson coeff.={0:.3f}, Gaussian coeff.={1:.3f}".format(
-            self.Q_g, self.Q_p))
+            self.Q_p, self.Q_g))
         image = self.noise_cmpnt(image, self.Q_g, self.Q_p)
 
         self.debug['t'] = t
