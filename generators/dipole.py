@@ -27,8 +27,7 @@ class DipoleGenerator(generators.Generator):
         super().__init__()
 
         self.dipole_type = 1
-        self.clip_min = (-0.75, 1)
-        self.clip_max = (-0.25, 1)
+        self.clip = (1., 1.)
         self.grey_range = 1.
         self.grey_limit = (0., 1.)
 
@@ -62,10 +61,9 @@ class DipoleGenerator(generators.Generator):
         # dipole equation
         f = x / np.sqrt(x ** 2 + y ** 2)**self.dipole_type
 
-        clip = (
-            np.random.uniform(self.clip_min[0], self.clip_max[0]),
-            np.random.uniform(self.clip_min[1], self.clip_max[1]))
-        f = np.clip(f, clip[0], clip[1])
+        if self.clip[0] < self.clip[1]:
+            clip = np.random.uniform(self.clip[0], self.clip[1])
+            f = np.clip(f, -clip, clip)
         f = np.interp(f, (f.min(), f.max()), range)
 
         im = utils.feature_scale(f, 0, 255, 0., 1., 'uint8')

@@ -176,7 +176,20 @@ def gradient(ctx, **kwargs):
     type=(float, float),
     default=(0., 1.),
     help="""Sets the darkest and brightest possible grey on a floating point scale.
+        The result image will be losslessly feature scaled to this range.
         Default: 0 1""",
+    metavar="D B"
+)
+@click.option(
+    '-c',
+    '--clip',
+    type=(float, float),
+    default=(1., 1.),
+    help="""Sets the boundaries of a randomised, symmetric colour value clip if
+        the first value is set to be less than the second one. The difference
+        between this option and grey limit is that no feature scaling is applied
+        in this step.
+        Default: 1 1 (no clipping)""",
     metavar="D B"
 )
 @click.pass_context
