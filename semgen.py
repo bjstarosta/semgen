@@ -202,6 +202,7 @@ def dipole(ctx, **kwargs):
     gen.dim = ctx.obj['image_dim']
     gen.grey_range = kwargs['grey_range']
     gen.grey_limit = kwargs['grey_limit']
+    gen.clip = kwargs['clip']
     gen.queue_images(ctx.obj['image_n'])
 
     prm_log = {
