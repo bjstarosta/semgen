@@ -17,6 +17,13 @@ class GradientGenerator(generators.Generator):
             'types'. Defaults to uniform distribution.
         random_pos (bool): If set to false all gradients will be generated
             at the origin position (0,0) and with the default direction.
+        grey_range (float): Percentage of the range of greys to be used on a
+            single image. If set to less than the difference between max
+            and min grey limit, the start of the range will be generated
+            randomly, creating a variation in the grey range in all generated
+            images.
+        grey_limit (tuple): Limits the minimum and maximum grey level value
+            in the generated images. Defaults to (0, 1).
 
     """
 
