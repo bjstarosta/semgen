@@ -190,7 +190,7 @@ def gradient(ctx, **kwargs):
         between this option and grey limit is that no feature scaling is applied
         in this step.
         Default: 1 1 (no clipping)""",
-    metavar="D B"
+    metavar="L H"
 )
 @click.pass_context
 def dipole(ctx, **kwargs):
@@ -294,11 +294,12 @@ def distort(ctx, **kwargs):
     ctx.obj['dst_path'] = kwargs['destination_dir']
     ctx.obj['image_resize'] = kwargs['dim']
     ctx.obj['to_read'] = utils.find_filenames(ctx.obj['src_path'])
-    ctx.obj['to_write'] = utils.get_filenames(
+    """ctx.obj['to_write'] = utils.get_filenames(
         ctx.obj['dst_path'],
         len(ctx.obj['to_read']),
         overwrite=kwargs['overwrite']
-    )
+    )"""
+    ctx.obj['to_write'] = utils.remap_filenames(ctx.obj['to_read'], ctx.obj['dst_path'])
     ctx.obj['log_params'] = kwargs['log_params']
     ctx.obj['use_params'] = kwargs['use_params']
 

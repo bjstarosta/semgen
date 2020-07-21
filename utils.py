@@ -26,6 +26,12 @@ def find_filenames(dir, format=None):
 
     return ret
 
+def remap_filenames(l, new_path):
+    ret = []
+    for f in l:
+        ret.append(os.path.join(new_path, os.path.split(f)[1]))
+    return ret
+
 def get_filenames(dir, n, format=None, overwrite=False):
     if format is None:
         format = semgen.IMG_PTRN
