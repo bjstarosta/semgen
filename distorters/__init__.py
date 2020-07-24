@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+"""SEMGen - Distorters module.
+
+Author: Bohdan Starosta
+University of Strathclyde Physics Department
+"""
+
 import importlib
 import logging
 
@@ -9,7 +16,8 @@ __all__ = []
 class Distorter(object):
     """Abstract parent class for all the distorter subclasses.
 
-    Subclasses become iterators operating on a queue."""
+    Subclasses become iterators operating on a queue.
+    """
 
     def __init__(self):
         self.params = []
@@ -21,7 +29,8 @@ class Distorter(object):
         if len(self.params) > 0:
             self.params_current = self.params.pop(0)
         else:
-            logging.debug("Image generation parameter list empty, autogenerating")
+            logging.debug(
+                "Image generation parameter list empty, autogenerating")
             self.params_current = self.generate_params()
 
     def __iter__(self):
@@ -63,5 +72,5 @@ class Distorter(object):
 
 
 def factory(mod, cls):
-    mod = importlib.import_module('distorters.'+mod)
+    mod = importlib.import_module('distorters.' + mod)
     return getattr(mod, cls)()

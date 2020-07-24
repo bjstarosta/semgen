@@ -1,14 +1,22 @@
+# -*- coding: utf-8 -*-
+"""SEMGen - SEM noise and distortion generating class.
+
+Author: Bohdan Starosta
+University of Strathclyde Physics Department
+"""
+
 import logging
 import numpy as np
 import scipy as sp
 
 import distorters
-import utils
 
 
 class SEMNoiseGenerator(distorters.Distorter):
-    """Simulates SEM imaging distortion (focus blur, drift, vibration, noise)
-    based on the physical principles of SEM operation.
+    """Simulate SEM imaging distortion on existing images.
+
+    SEM imaging distortion components (focus blur, drift, vibration, noise)
+    are based on the physical principles of SEM operation.
 
     See: [1] P. Cizmar, A. E. Vladár, B. Ming, and M. T. Postek,
     ‘Simulated SEM images for resolution measurement’,
@@ -43,22 +51,26 @@ class SEMNoiseGenerator(distorters.Distorter):
 
         self.gm_size = 15
         self.astigmatism_coeff = 0.95
-        self.astigmatism_rotation = (1/4)*np.pi
+        self.astigmatism_rotation = (1 / 4) * np.pi
         self.scan_passes = 2
         self.v_complexity = 4
         self.A_lim = (5, 10)
         self.f_lim = (20, 25)
         self.Q_g = 0.0129
         self.Q_p = 0.0422
-        #self.Q_g = 0.0720
-        #self.Q_p = 0.0164
+        # self.Q_g = 0.0720
+        # self.Q_p = 0.0164
 
         self.debug = {}
 
     def distort(self, image):
         # Out-of-focus effects (gaussian blur with astigmatism)
-        logging.debug("Focus component: gm size={0}, astig. c={1:.3f}, astig. rot={2:.3f}".format(
-            self.gm_size, self.astigmatism_coeff, self.astigmatism_rotation))
+        logging.debug(
+            ("Focus component: gm size={0},"
+            "astig. c={1:.3f}, astig. rot={2:.3f}").format(
+                self.gm_size,
+                self.astigmatism_coeff,
+                self.astigmatism_rotation))
 
         image = sp.ndimage.convolve(image, self.gaussian_matrix(
             step=self.gm_size,
@@ -69,15 +81,19 @@ class SEMNoiseGenerator(distorters.Distorter):
         self.debug['post-focus'] = np.copy(image)
 
         # Drift and vibration
-        t_end = 2*np.pi * self.scan_passes
-        t = np.linspace(0, t_end, image.shape[0] * image.shape[1] * self.scan_passes)
-        xv, yv = self.vibration_function(t, self.v_complexity, self.A_lim, self.f_lim)
+        t_end = 2 * np.pi * self.scan_passes
+        t = np.linspace(0, t_end,
+            image.shape[0] * image.shape[1] * self.scan_passes)
+        xv, yv = self.vibration_function(t, self.v_complexity,
+            self.A_lim, self.f_lim)
 
-        logging.debug("Drift component: scan passes={0}, t size={1}, superposition complexity={2}".format(
-            self.scan_passes, len(t), self.v_complexity))
+        logging.debug(
+            ("Drift component: scan passes={0}, "
+            "t size={1}, superposition complexity={2}").format(
+                self.scan_passes, len(t), self.v_complexity))
 
         image_ = np.copy(image)
-        #image = np.zeros((image.shape[1], image.shape[0]))
+        # image = np.zeros((image.shape[1], image.shape[0]))
         i = 0
         xv_f = np.floor(xv)
         xv_c = np.ceil(xv)
@@ -86,7 +102,7 @@ class SEMNoiseGenerator(distorters.Distorter):
 
         it = np.nditer(image_, flags=['multi_index'])
         for j in range(0, self.scan_passes):
-            logging.debug("- Raster scan pass {0}".format(j+1))
+            logging.debug("- Raster scan pass {0}".format(j + 1))
             it.reset()
             for px in it:
                 xs = it.multi_index[1]
@@ -101,27 +117,33 @@ class SEMNoiseGenerator(distorters.Distorter):
                     ys_ = int(ys + yv_f[i])
 
                     if xv[i] > 0:
-                        xsm = [xs_, xs_+1]
+                        xsm = [xs_, xs_ + 1]
                     elif xv[i] < 0:
-                        xsm = [xs_-1, xs_]
+                        xsm = [xs_ - 1, xs_]
                     else:
                         xsm = [xs_, xs_]
 
                     if yv[i] > 0:
-                        ysm = [ys_, ys_+1]
+                        ysm = [ys_, ys_ + 1]
                     elif xv[i] < 0:
-                        ysm = [ys_-1, ys_]
+                        ysm = [ys_ - 1, ys_]
                     else:
                         ysm = [ys_, ys_]
 
                     coords = np.array([
-                        [self._getpx(image_, xsm[0], ysm[0]), self._getpx(image_, xsm[1], ysm[0])],
-                        [self._getpx(image_, xsm[0], ysm[1]), self._getpx(image_, xsm[1], ysm[1])]
+                        [self._getpx(image_, xsm[0], ysm[0]),
+                        self._getpx(image_, xsm[1], ysm[0])],
+                        [self._getpx(image_, xsm[0], ysm[1]),
+                        self._getpx(image_, xsm[1], ysm[1])]
                     ])
-                    px_ = lambda x, y: (np.array([[1-x, x]]) @ coords @ np.array([[1-y, y]]).T)[0][0]
+
+                    def px_(x, y):
+                        return (np.array([[1 - x, x]])
+                            @ coords
+                            @ np.array([[1 - y, y]]).T)[0][0]
 
                     if None not in coords:
-                        #print(px_(0, 0))
+                        # print(px_(0, 0))
                         self._setpx(image, xsm[0], ysm[0], px_(0, 0))
                         self._setpx(image, xsm[1], ysm[0], px_(1, 0))
                         self._setpx(image, xsm[0], ysm[1], px_(0, 1))
@@ -132,8 +154,10 @@ class SEMNoiseGenerator(distorters.Distorter):
         self.debug['post-drift'] = np.copy(image)
 
         # Gaussian and Poisson noise sum
-        logging.debug("Noise component: Poisson coeff.={0:.3f}, Gaussian coeff.={1:.3f}".format(
-            self.Q_p, self.Q_g))
+        logging.debug(
+            ("Noise component: Poisson coeff.={0:.3f}, "
+            "Gaussian coeff.={1:.3f}").format(
+                self.Q_p, self.Q_g))
         image = self.noise_cmpnt(image, self.Q_g, self.Q_p)
 
         self.debug['t'] = t
@@ -142,9 +166,9 @@ class SEMNoiseGenerator(distorters.Distorter):
 
         return image.astype('uint8')
 
-    def gaussian_matrix(self, sigma=1, domain=3, step=5, s=1, phi_s=0, norm=False):
-        """Returns a matrix of the specified size containing the 2D Gaussian
-        function.
+    def gaussian_matrix(self,
+    sigma=1, domain=3, step=5, s=1, phi_s=0, norm=False):
+        """Return a matrix of specific size containing the 2D Gaussian function.
 
         Args:
             sigma (float): Gaussian RMS width (standard deviation).
@@ -167,16 +191,20 @@ class SEMNoiseGenerator(distorters.Distorter):
         x, y = np.meshgrid(sp, sp)
 
         x_ = s * (x * np.cos(phi_s) + y * np.sin(phi_s))
-        y_ = (1/s) * (-x * np.sin(phi_s) + y * np.cos(phi_s))
-        p = (1 / (2*np.pi * sigma**2)) * np.exp(-(x_**2 + y_**2) / 2*(sigma**2))
+        y_ = (1 / s) * (-x * np.sin(phi_s) + y * np.cos(phi_s))
 
-        if norm == True:
+        m = (1 / (2 * np.pi * sigma**2))
+        p = m * np.exp(-(x_**2 + y_**2) / 2 * (sigma**2))
+
+        if norm is True:
             p = p / np.sum(p)
 
         return p
 
     def vibration_function(self, t, sn, A_lim, f_lim):
-        """Approximates all of the sources of vibration affecting SEM images, and
+        """Return X and Y components of a vibration function.
+
+        Approximates all of the sources of vibration affecting SEM images, and
         combines them into a superposition of sine functions which can be used
         for pixel displacement.
 
@@ -206,18 +234,18 @@ class SEMNoiseGenerator(distorters.Distorter):
             x_v = x_v + v(t,
                 np.random.uniform(A_lim[0], A_lim[1]),
                 np.random.uniform(f_lim[0], f_lim[1]),
-                np.random.uniform(0, 2*np.pi)
-            )
+                np.random.uniform(0, 2 * np.pi))
             y_v = y_v + v(t,
                 np.random.uniform(A_lim[0], A_lim[1]),
                 np.random.uniform(f_lim[0], f_lim[1]),
-                np.random.uniform(0, 2*np.pi)
-            )
+                np.random.uniform(0, 2 * np.pi))
 
         return x_v, y_v
 
     def noise_cmpnt(self, img, gaussian_c, poisson_c):
-        """Approximates all of the sources of noise present in SEM images, and
+        """Apply additive noise to an array containing image data.
+
+        Approximates all of the sources of noise present in SEM images, and
         combines them into a single noise component of the form:
 
             C_3 = C_2 + (Q_g + Q_p * sqrt(C_2)) * R_i
@@ -240,7 +268,8 @@ class SEMNoiseGenerator(distorters.Distorter):
 
         """
         fn = np.vectorize(
-            lambda x: x + ((gaussian_c + (poisson_c * np.sqrt(x))) * np.random.uniform(-1, 1))
+            lambda x: x + ((gaussian_c + (poisson_c * np.sqrt(x)))
+                * np.random.uniform(-1, 1))
         )
 
         a = img.max()

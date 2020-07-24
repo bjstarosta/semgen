@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+"""SEMGen - Dipole generator class.
+
+Author: Bohdan Starosta
+University of Strathclyde Physics Department
+"""
+
 import logging
 import numpy as np
 
@@ -10,9 +17,9 @@ class DipoleGenerator(generators.Generator):
 
     Attributes:
         dipole_type (float): Determines the shape of the generated image.
-            Value approaching 1 will generate an image resembling a raised point,
-            2-3 for electric dipole visualisation, >3 approaches a circle divided
-            down its middle.
+            Value approaching 1 will generate an image resembling a raised
+            point, 2-3 for electric dipole visualisation, >3 approaches a
+            circle divided down its middle.
         grey_range (float): Percentage of the range of greys to be used on a
             single image. If set to less than the difference between max
             and min grey limit, the start of the range will be generated
@@ -24,6 +31,7 @@ class DipoleGenerator(generators.Generator):
     """
 
     def __init__(self):
+        """Init function."""
         super().__init__()
 
         self.dipole_type = 1
@@ -33,7 +41,7 @@ class DipoleGenerator(generators.Generator):
 
     def generate_params(self):
         p = {
-            'angle': np.random.uniform(0, 2*np.pi)
+            'angle': np.random.uniform(0, 2 * np.pi)
         }
         return p
 

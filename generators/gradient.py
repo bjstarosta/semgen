@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+"""SEMGen - Gradient generator class.
+
+Author: Bohdan Starosta
+University of Strathclyde Physics Department
+"""
+
 import logging
 import numpy as np
 
@@ -41,7 +48,7 @@ class GradientGenerator(generators.Generator):
             'type': np.random.choice(self.types, 1, p=self.types_pr)[0]
         }
         if p['type'] == 'linear':
-            p['angle'] = np.random.uniform(0, 2*np.pi)
+            p['angle'] = np.random.uniform(0, 2 * np.pi)
         if p['type'] == 'radial':
             p['origin'] = (np.random.uniform(-1, 1), np.random.uniform(-1, 1))
         return p
@@ -56,8 +63,9 @@ class GradientGenerator(generators.Generator):
             range = (rn, rn + self.grey_range)
 
         if p['type'] == 'linear':
-            logging.debug("Linear gradient: angle={0:.3f} rad ({1:.3f} deg)".format(
-                p['angle'], 180 * p['angle'] / np.pi))
+            logging.debug(
+                "Linear gradient: angle={0:.3f} rad ({1:.3f} deg)".format(
+                    p['angle'], 180 * p['angle'] / np.pi))
             im = self._linear_gradient(self.dim, p['angle'], range)
         if p['type'] == 'radial':
             logging.debug("Radial gradient: origin=x:{0},y:{1}".format(
@@ -67,16 +75,16 @@ class GradientGenerator(generators.Generator):
         im = utils.feature_scale(im, 0, 255, 0., 1., 'uint8')
         return im
 
-    def _linear_gradient(self, dim, angle=0, range=(0,1)):
+    def _linear_gradient(self, dim, angle=0, range=(0, 1)):
         x = np.linspace(0, 1, dim[0])
         y = np.linspace(0, 1, dim[1])
         x, y = np.meshgrid(x, y)
 
-        ret = np.cos(angle)*x + np.sin(angle)*y
+        ret = np.cos(angle) * x + np.sin(angle) * y
         ret = np.interp(ret, (ret.min(), ret.max()), range)
         return ret
 
-    def _radial_gradient(self, dim, origin=(0,0), range=(0,1)):
+    def _radial_gradient(self, dim, origin=(0, 0), range=(0, 1)):
         x = np.linspace(-1, 1, dim[0])
         y = np.linspace(-1, 1, dim[1])
         x, y = np.meshgrid(x, y)

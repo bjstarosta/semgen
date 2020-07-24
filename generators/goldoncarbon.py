@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+"""SEMGen - Gold on carbon generator class.
+
+Author: Bohdan Starosta
+University of Strathclyde Physics Department
+"""
+
 import logging
 import multiprocessing
 import numpy as np
@@ -7,8 +14,9 @@ import utils
 
 
 class GoldOnCarbonGenerator(generators.Generator):
-    """Simulates images that closely mimic the gold-on-carbon SEM test sample
-    images that usually consist of bright grains on a dark background.
+    """Simulate images closely mimicking the gold-on-carbon SEM test sample.
+
+    These images that usually consist of bright grains on a dark background.
 
     See: [1] P. Cizmar, A. E. Vladár, B. Ming, and M. T. Postek,
     ‘Simulated SEM images for resolution measurement’,
@@ -65,13 +73,13 @@ class GoldOnCarbonGenerator(generators.Generator):
         self.grain_r = (self.dim[0] * 0.05, self.dim[0] * 0.3)
         self.grain_a1 = (0, 0.45)
         self.grain_a2 = (0, 0.1)
-        self.grain_f1 = (0, 2*np.pi)
-        self.grain_f2 = (0, 2*np.pi)
+        self.grain_f1 = (0, 2 * np.pi)
+        self.grain_f2 = (0, 2 * np.pi)
 
-        self.grain_colour = 0.30 # C_g
-        self.grain_edge_colour = 0.7 # C_e
-        self.grain_edge_width = 5 # r_t
-        self.grain_edge_steepness = 0.43 # b
+        self.grain_colour = 0.30  # C_g
+        self.grain_edge_colour = 0.7  # C_e
+        self.grain_edge_width = 5  # r_t
+        self.grain_edge_steepness = 0.43  # b
         self.grain_fill_k = 3
         self.grain_fill_gain = 100
         self.bg_fill_gain = 50
@@ -86,12 +94,14 @@ class GoldOnCarbonGenerator(generators.Generator):
         self.debug = {}
 
     def generate_params(self):
-        #mxs = int((self.grain_fill_k * self.dim[0]) / 175)
-        mxs = int((self.grain_fill_k * 6) / 2) # set by trial and error on a 200x200 image
+        # mxs = int((self.grain_fill_k * self.dim[0]) / 175)
+        # set by trial and error on a 200x200 image
+        mxs = int((self.grain_fill_k * 6) / 2)
         params = {
             'grain_n': np.random.randint(self.grain_n[0], self.grain_n[1]),
             'grain_tex': np.random.random_sample((mxs, mxs)),
-            'bg_tex': np.random.random_sample((self.bg_pm_size, self.bg_pm_size)),
+            'bg_tex': np.random.random_sample(
+                (self.bg_pm_size, self.bg_pm_size)),
             'grains': []
         }
         for i in range(0, params['grain_n']):
@@ -107,8 +117,10 @@ class GoldOnCarbonGenerator(generators.Generator):
         return params
 
     def generate(self):
-        """Generates a visual representation of bright gold grains on carbon
-        through a perfect (non-noisy) SEM.
+        """Generate a visual representation of bright gold grains on carbon.
+
+        Output has none of the SEM specific noise or distortion applied to it.
+        To apply SEM noise see distorters.SEMNoise.
 
         Args:
             params (list): A list of parameters to use while generating the
@@ -134,19 +146,20 @@ class GoldOnCarbonGenerator(generators.Generator):
 
             g = self.params_current['grains'][j]
 
-            logging.debug("Candidate grain {0}: x={1}, y={2}, r={3:.3f}".format(
-                i, g['x'], g['y'], g['r']))
+            logging.debug(
+                "Candidate grain {0}: x={1}, y={2}, r={3:.3f}".format(
+                    i, g['x'], g['y'], g['r']))
             mask_cn, params_cn_ = self._draw_grain_mask(
                 g['r'], g['x'], g['y'], g['a1'], g['a2'], g['f1'], g['f2'])
 
             # Discard candidate if there is overlap
-            if np.max(grain_mask & mask_cn) == True:
+            if np.max(grain_mask & mask_cn) is True:
                 logging.debug("Candidate overlaps, discarding.")
                 continue
             else:
                 logging.debug("!! Candidate accepted.")
 
-            #im = im + self._draw_grain(params_cn)
+            # im = im + self._draw_grain(params_cn)
             grain_mask = grain_mask + mask_cn
             grain_masks.append(mask_cn)
             params_cn.append(params_cn_)
@@ -154,7 +167,9 @@ class GoldOnCarbonGenerator(generators.Generator):
         self.debug['grain_mask'] = grain_mask
 
         # Draw all grains
-        logging.debug("Drawing {0} grains using {1} workers.".format(len(params_cn), self.n_workers))
+        logging.debug(
+            "Drawing {0} grains using {1} workers.".format(
+                len(params_cn), self.n_workers))
         if self.n_workers <= 1:
             for i in params_cn:
                 im = im + self._draw_grain(i)
@@ -184,8 +199,10 @@ class GoldOnCarbonGenerator(generators.Generator):
         return im
 
     def _draw_grain_mask(self, r, x0, y0, a1, a2, f1, f2):
-        """Draws a parametric grain-like shape according to the specified
-        arguments and returns a binary mask of it.
+        """Draws a parametric grain-like shape.
+
+        The characteristics of the shape are defined by the specified
+        arguments and the method returns a binary mask of it.
 
         Args:
             r (float): Grain shape radius.
@@ -201,19 +218,21 @@ class GoldOnCarbonGenerator(generators.Generator):
                 Affects rotation of grain and distortion.
 
         Returns:
-            A tuple containing the mask in its first element, and the parameters
-            used to create it in the second.
+            A tuple containing the mask in its first element, and the
+            parameters used to create it in the second.
 
         """
-        phi = np.linspace(0, 2*np.pi, self._step) # domain
-        d = 1 + a1 * np.sin(2 * phi + f1) + a2 * np.sin(3 * phi + f2)  # deformation func
-        x = r * d * np.cos(phi) # + x0
-        y = r * d * np.sin(phi) # + y0
+        phi = np.linspace(0, 2 * np.pi, self._step)  # domain
 
-        lx = int(np.round(x0 + np.min(x))) # x0 - point furthest left
-        ty = int(np.round(y0 + np.min(y))) # y0 - point furthest top
-        rx = int(np.round(x0 + np.max(x))) # x0 + point furthest right
-        by = int(np.round(y0 + np.max(y))) # y0 + point furthest bottom
+        # deformation func
+        d = 1 + a1 * np.sin(2 * phi + f1) + a2 * np.sin(3 * phi + f2)
+        x = r * d * np.cos(phi)  # + x0
+        y = r * d * np.sin(phi)  # + y0
+
+        lx = int(np.round(x0 + np.min(x)))  # x0 - point furthest left
+        ty = int(np.round(y0 + np.min(y)))  # y0 - point furthest top
+        rx = int(np.round(x0 + np.max(x)))  # x0 + point furthest right
+        by = int(np.round(y0 + np.max(y)))  # y0 + point furthest bottom
 
         # make all coords positive integers for pixel positions
         x = x + np.abs(np.min(x)) + self._margin
@@ -221,7 +240,9 @@ class GoldOnCarbonGenerator(generators.Generator):
         xy = np.column_stack((x, y)).astype('uint32')
 
         # set up mask and draw the outline
-        dim = (int(np.max(x) + (self._margin*2)), int(np.max(y)) + (self._margin*2))
+        dim = (
+            int(np.max(x) + (self._margin * 2)),
+            int(np.max(y)) + (self._margin * 2))
         mask = np.zeros((dim[1], dim[0]), dtype="bool")
         for px, py in xy:
             self._setpx(mask, px, py, 1)
@@ -236,9 +257,9 @@ class GoldOnCarbonGenerator(generators.Generator):
         x0_ = lx
         y0_ = ty
         if rx > self.dim[0]:
-            mask = mask[:, 0:(mask.shape[1]-(rx-self.dim[0]))]
+            mask = mask[:, 0:(mask.shape[1] - (rx - self.dim[0]))]
         if by > self.dim[1]:
-            mask = mask[0:(mask.shape[0]-(by-self.dim[1])), :]
+            mask = mask[0:(mask.shape[0] - (by - self.dim[1])), :]
         if lx < 0:
             mask = mask[:, np.abs(x0_):]
             x0_ = 0
@@ -255,8 +276,9 @@ class GoldOnCarbonGenerator(generators.Generator):
         return (mask_, (r, d, phi, lx, ty, mask))
 
     def _draw_grain(self, params):
-        """Uses parameters generated during the use of _draw_grain_mask() to
-        generate a simulation of a grain.
+        """Use passed parameters to generate a simulation of a grain.
+
+        Parameters are generated during the use of _draw_grain_mask().
 
         Args:
             params (tuple): Accepts the second element of the tuple returned by
@@ -270,9 +292,12 @@ class GoldOnCarbonGenerator(generators.Generator):
         (r, d, phi, lx, ty, mask) = params
 
         # use the mask to generate the grain shape
-        dim = (mask.shape[0] + (self._margin*2), mask.shape[1] + (self._margin*2))
+        dim = (
+            mask.shape[0] + (self._margin * 2),
+            mask.shape[1] + (self._margin * 2))
         grain = np.zeros(dim)
-        grain[self._margin:-self._margin, self._margin:-self._margin] = mask.astype('uint32') * self.grain_colour
+        grain[self._margin:-self._margin, self._margin:-self._margin] = \
+            mask.astype('uint32') * self.grain_colour
 
         # apply edge effect
         r_ = r
@@ -293,7 +318,9 @@ class GoldOnCarbonGenerator(generators.Generator):
 
             for px, py in xy:
                 cn = self.grain_colour - self.grain_edge_colour
-                cd = np.exp(-self.grain_edge_steepness * self.grain_edge_width) - 1
+                cde = -self.grain_edge_steepness * self.grain_edge_width
+                cd = np.exp(cde) - 1
+
                 c = (cn / cd) * (np.exp(-self.grain_edge_steepness * re) - 1)
                 c = c + self.grain_edge_colour
 
@@ -316,7 +343,9 @@ class GoldOnCarbonGenerator(generators.Generator):
 
         grain_ = np.zeros((self.dim[1], self.dim[0]))
         grain_ = self._slice(grain, grain_, x0_, y0_)
-        logging.debug("Finished drawing grain at x={1}, y={2}, r={0:.3f}.".format(r, lx, ty))
+        logging.debug(
+            "Finished drawing grain at x={1}, y={2}, r={0:.3f}.".format(
+                r, lx, ty))
         return grain_
 
     def _fft_texture(self, m):

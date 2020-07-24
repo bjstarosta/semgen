@@ -1,7 +1,12 @@
+# -*- coding: utf-8 -*-
+"""SEMGen - Generators module.
+
+Author: Bohdan Starosta
+University of Strathclyde Physics Department
+"""
+
 import importlib
 import logging
-
-import utils
 
 __all__ = []
 
@@ -28,7 +33,8 @@ class Generator(object):
         if len(self.params) > 0:
             self.params_current = self.params.pop(0)
         else:
-            logging.debug("Image generation parameter list empty, autogenerating")
+            logging.debug(
+                "Image generation parameter list empty, autogenerating")
             self.params_current = self.generate_params()
 
     def __iter__(self):
@@ -63,7 +69,7 @@ class Generator(object):
         return {}
 
     def generate(self):
-        return
+        raise NotImplementedError
 
     def _getpx(self, im, x, y):
         if x < 0 or x >= im.shape[1] or y < 0 or y >= im.shape[0]:
@@ -76,9 +82,9 @@ class Generator(object):
         im[y, x] = c
 
     def _slice(self, src, dst, x, y):
-        """Safely slices two numpy arrays together, truncating the source
-        array as necessary to fit the destination array.
+        """Safely slices two numpy arrays together.
 
+        Truncates the source array as necessary to fit the destination array.
         X and Y coordinates can be negative numbers, and the source will be
         truncated accordingly.
 
@@ -92,7 +98,8 @@ class Generator(object):
             A numpy array the size of the destination array.
 
         """
-        if x < -src.shape[1] or y < -src.shape[0] or x > dst.shape[1] or y > dst.shape[0]:
+        if (x < -src.shape[1] or y < -src.shape[0]
+        or x > dst.shape[1] or y > dst.shape[0]):
             return dst
 
         if x < 0:
@@ -108,10 +115,10 @@ class Generator(object):
             d = (y + src.shape[0]) - dst.shape[0]
             src = src[:-d, :]
 
-        dst[y:y+src.shape[0], x:x+src.shape[1]] = src
+        dst[y:y + src.shape[0], x:x + src.shape[1]] = src
         return dst
 
 
 def factory(mod, cls):
-    mod = importlib.import_module('generators.'+mod)
+    mod = importlib.import_module('generators.' + mod)
     return getattr(mod, cls)()

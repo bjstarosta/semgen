@@ -1,3 +1,14 @@
+# -*- coding: utf-8 -*-
+"""SEMGen - SEM synthetic image generator.
+
+Simulation code is based primarily off of independent research conducted by
+other teams. This package in particular owes a lot to Cizmar et al (2008) for
+it's implementation of the gold on carbon generator and the SEM distortion.
+
+Author: Bohdan Starosta
+University of Strathclyde Physics Department
+"""
+
 import os
 import logging
 import click
@@ -35,13 +46,11 @@ PARAM_FILE = 'semgen-prm.txt'
 )
 @click.pass_context
 def main(ctx, **kwargs):
-    """Generates new images or transforms existing images with SEM noise and
-    distortion.
-    """
+    """Generate new images or transform existing images with SEM distortion."""
     LOG_FORMAT = '[%(levelname)s] %(message)s'
-    if kwargs['quiet'] == True:
+    if kwargs['quiet'] is True:
         LOG_LEVEL = 'ERROR'
-    elif kwargs['verbose'] == True:
+    elif kwargs['verbose'] is True:
         LOG_LEVEL = 'DEBUG'
     else:
         LOG_LEVEL = 'INFO'
@@ -51,6 +60,7 @@ def main(ctx, **kwargs):
     ctx.obj['quiet'] = kwargs['quiet']
     ctx.obj['verbose'] = kwargs['verbose']
     ctx.obj['pbar'] = kwargs['progress_bar']
+
 
 @main.group()
 @click.argument(
@@ -98,7 +108,7 @@ def main(ctx, **kwargs):
 )
 @click.pass_context
 def generate(ctx, **kwargs):
-    """Generates new images that mimic dislocations on GaN surfaces.
+    """Generate synthetic images of SEM scanned surfaces.
 
     Output format will be TIFF, and generated images will have sequential
     names.
@@ -119,16 +129,18 @@ def generate(ctx, **kwargs):
         click.format_filename(ctx.obj['to_write'][0])
     ))
 
+
 @generate.command()
 @click.option(
     '-g',
     '--grey-range',
     type=float,
     default=1.,
+    show_default=True,
     help="""Range of greys present in the gradient. Default setting generates
         a black-white gradient, number lower than "1" causes gradients to be
-        generated with a smaller range between the brightest and darkest colour,
-        with the starting point of the range generated randomly. Default: 1"""
+        generated with a smaller range between the brightest and darkest
+        colour, with the starting point of the range generated randomly."""
 )
 @click.option(
     '-l',
@@ -141,8 +153,7 @@ def generate(ctx, **kwargs):
 )
 @click.pass_context
 def gradient(ctx, **kwargs):
-    """Generate gradient images.
-    """
+    """Generate gradient images."""
     logging.info("Generator: gradient")
 
     gen = generators.factory('gradient', 'GradientGenerator')
@@ -153,11 +164,12 @@ def gradient(ctx, **kwargs):
 
     prm_log = {
         'generator': 'gradient',
-        'global': {}, # TODO: dump generator class properties into this
+        'global': {},  # TODO: dump generator class properties into this
         'params': []
     }
 
     generate_images(ctx, gen, prm_log)
+
 
 @generate.command()
 @click.option(
@@ -165,19 +177,21 @@ def gradient(ctx, **kwargs):
     '--grey-range',
     type=float,
     default=1.,
+    show_default=True,
     help="""Range of greys present in the gradient. Default setting generates
         a black-white gradient, number lower than "1" causes gradients to be
-        generated with a smaller range between the brightest and darkest colour,
-        with the starting point of the range generated randomly. Default: 1"""
+        generated with a smaller range between the brightest and darkest
+        colour, with the starting point of the range generated randomly."""
 )
 @click.option(
     '-l',
     '--grey-limit',
     type=(float, float),
     default=(0., 1.),
-    help="""Sets the darkest and brightest possible grey on a floating point scale.
-        The result image will be losslessly feature scaled to this range.
-        Default: 0 1""",
+    show_default=True,
+    help="""Sets the darkest and brightest possible grey on a floating point
+        scale. The result image will be losslessly feature scaled to this
+        range.""",
     metavar="D B"
 )
 @click.option(
@@ -185,17 +199,16 @@ def gradient(ctx, **kwargs):
     '--clip',
     type=(float, float),
     default=(1., 1.),
+    show_default=True,
     help="""Sets the boundaries of a randomised, symmetric colour value clip if
         the first value is set to be less than the second one. The difference
-        between this option and grey limit is that no feature scaling is applied
-        in this step.
-        Default: 1 1 (no clipping)""",
+        between this option and grey limit is that no feature scaling is
+        applied in this step. Default values mean no clipping is applied.""",
     metavar="L H"
 )
 @click.pass_context
 def dipole(ctx, **kwargs):
-    """Generate dipole-like images.
-    """
+    """Generate dipole-like images."""
     logging.info("Generator: dipole")
 
     gen = generators.factory('dipole', 'DipoleGenerator')
@@ -207,11 +220,12 @@ def dipole(ctx, **kwargs):
 
     prm_log = {
         'generator': 'dipole',
-        'global': {}, # TODO: dump generator class properties into this
+        'global': {},  # TODO: dump generator class properties into this
         'params': []
     }
 
     generate_images(ctx, gen, prm_log)
+
 
 @generate.command()
 @click.option(
@@ -225,8 +239,7 @@ def dipole(ctx, **kwargs):
 # TODO: Expand options
 @click.pass_context
 def gold(ctx, **kwargs):
-    """Generate a gold on carbon SEM test case image.
-    """
+    """Generate a gold on carbon SEM test case image."""
     logging.info("Generator: gold-on-carbon SEM test sample")
 
     gen = generators.factory('goldoncarbon', 'GoldOnCarbonGenerator')
@@ -235,11 +248,12 @@ def gold(ctx, **kwargs):
 
     prm_log = {
         'generator': 'gold',
-        'global': {}, # TODO: dump generator class properties into this
+        'global': {},  # TODO: dump generator class properties into this
         'params': []
     }
 
     generate_images(ctx, gen, prm_log)
+
 
 @main.group()
 @click.argument(
@@ -257,7 +271,9 @@ def gold(ctx, **kwargs):
     '--dim',
     type=(int, int),
     default=(0, 0),
-    help="""Dimensions (W, H) to resize the distorted images to. Default: 0 0 (no resize applied)""",
+    show_default=True,
+    help="""Dimensions (W, H) to resize the distorted images to.
+        Defaults to no resize applied.""",
     metavar="W H"
 )
 @click.option(
@@ -285,7 +301,7 @@ def gold(ctx, **kwargs):
 )
 @click.pass_context
 def distort(ctx, **kwargs):
-    """Transforms existing images with SEM noise and distortion.
+    """Transform existing images with SEM noise and distortion.
 
     Output format will be TIFF, and generated images will have sequential
     names.
@@ -299,7 +315,8 @@ def distort(ctx, **kwargs):
         len(ctx.obj['to_read']),
         overwrite=kwargs['overwrite']
     )"""
-    ctx.obj['to_write'] = utils.remap_filenames(ctx.obj['to_read'], ctx.obj['dst_path'])
+    ctx.obj['to_write'] = utils.remap_filenames(
+        ctx.obj['to_read'], ctx.obj['dst_path'])
     ctx.obj['log_params'] = kwargs['log_params']
     ctx.obj['use_params'] = kwargs['use_params']
 
@@ -308,12 +325,12 @@ def distort(ctx, **kwargs):
         click.format_filename(ctx.obj['to_write'][0])
     ))
 
+
 @distort.command()
 # TODO: Expand options
 @click.pass_context
 def semnoise(ctx, **kwargs):
-    """Simulate SEM time-dependent distortions and noise on an existing image.
-    """
+    """Simulate time-dependent distortions and noise on an existing image."""
     logging.info("Distorter: SEM noise generator")
 
     dst = distorters.factory('semnoise', 'SEMNoiseGenerator')
@@ -321,7 +338,7 @@ def semnoise(ctx, **kwargs):
 
     prm_log = {
         'distorter': 'semnoise',
-        'global': {}, # TODO: dump generator class properties into this
+        'global': {},  # TODO: dump generator class properties into this
         'params': []
     }
 
@@ -329,6 +346,19 @@ def semnoise(ctx, **kwargs):
 
 
 def generate_images(ctx, gen, prm_log):
+    """Iterate through passed Generator object to generate synthetic images.
+
+    This function serves as a controller between the command line and the
+    actual generation code contained in the passed Generator object.
+
+    Args:
+        ctx (dict): Context object passed from click.
+            Contains parameter/option data passed from the command line.
+        gen (generators.Generator): Generator object to iterate.
+        prm_log (dict): Serialisable object containing parameters required
+            to recreate the currently simulated batch of images.
+
+    """
     logging.info("Generation begins...")
 
     with click.progressbar(
@@ -342,7 +372,9 @@ def generate_images(ctx, gen, prm_log):
             prm_log['params'].append(gen.params_current)
             i = i + 1
             # Disable progress bar if verbose or quiet is enabled
-            if ctx.obj['pbar'] == True and ctx.obj['quiet'] == False and ctx.obj['verbose'] == False:
+            if (ctx.obj['pbar'] is True
+            and ctx.obj['quiet'] is False
+            and ctx.obj['verbose'] is False):
                 pbar.update(1)
 
     logging.info("{0:d} images generated in '{1}'.".format(
@@ -350,13 +382,27 @@ def generate_images(ctx, gen, prm_log):
         click.format_filename(os.path.abspath(ctx.obj['image_path']))
     ))
 
-    if ctx.obj['log_params'] == True:
+    if ctx.obj['log_params'] is True:
         logging.info("Param file written to '{0}'.".format(
             click.format_filename(os.path.abspath(ctx.obj['image_path']))
         ))
         utils.write_params(ctx.obj['image_path'], prm_log)
 
+
 def distort_images(ctx, dst, prm_log):
+    """Iterate through passed Distorter object to alter images.
+
+    This function serves as a controller between the command line and the
+    actual distortion code contained in the passed Distorter object.
+
+    Args:
+        ctx (dict): Context object passed from click.
+            Contains parameter/option data passed from the command line.
+        gen (distorters.Distorter): Generator object to iterate.
+        prm_log (dict): Serialisable object containing parameters required
+            to recreate the currently simulated batch of images.
+
+    """
     if ctx.obj['image_resize'] != (0, 0):
         logging.info("Images will be resized to {0:d}:{1:d} pixels.".format(
             ctx.obj['image_resize'][0], ctx.obj['image_resize'][1]))
@@ -370,7 +416,7 @@ def distort_images(ctx, dst, prm_log):
     ) as pbar:
         i = 0
         for im in dst:
-            #im = feature_scale(im, 0, 255, 0., 1., 'uint8')
+            # im = feature_scale(im, 0, 255, 0., 1., 'uint8')
             if ctx.obj['image_resize'] != (0, 0):
                 im = utils.resize_image(im, ctx.obj['image_resize'])
 
@@ -378,7 +424,9 @@ def distort_images(ctx, dst, prm_log):
             prm_log['params'].append(dst.params_current)
             i = i + 1
             # Disable progress bar if verbose or quiet is enabled
-            if ctx.obj['pbar'] == True and ctx.obj['quiet'] == False and ctx.obj['verbose'] == False:
+            if (ctx.obj['pbar'] is True
+            and ctx.obj['quiet'] is False
+            and ctx.obj['verbose'] is False):
                 pbar.update(1)
 
     logging.info("{0:d} images generated in '{1}'.".format(
@@ -386,7 +434,7 @@ def distort_images(ctx, dst, prm_log):
         click.format_filename(os.path.abspath(ctx.obj['dst_path']))
     ))
 
-    if ctx.obj['log_params'] == True:
+    if ctx.obj['log_params'] is True:
         logging.info("Param file written to '{0}'.".format(
             click.format_filename(os.path.abspath(ctx.obj['dst_path']))
         ))
