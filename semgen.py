@@ -132,6 +132,35 @@ def generate(ctx, **kwargs):
 
 @generate.command()
 @click.option(
+    '-l',
+    '--grey-limit',
+    type=(float, float),
+    default=(0., 1.),
+    help="""Sets the darkest and brightest possible grey on a floating point scale.
+        Default: 0 1""",
+    metavar="D B"
+)
+@click.pass_context
+def constant(ctx, **kwargs):
+    """Generate gradient images."""
+    logging.info("Generator: constant")
+
+    gen = generators.factory('constant', 'ConstantGenerator')
+    gen.dim = ctx.obj['image_dim']
+    gen.grey_limit = kwargs['grey_limit']
+    gen.queue_images(ctx.obj['image_n'])
+
+    prm_log = {
+        'generator': 'constant',
+        'global': {},  # TODO: dump generator class properties into this
+        'params': []
+    }
+
+    generate_images(ctx, gen, prm_log)
+
+
+@generate.command()
+@click.option(
     '-g',
     '--grey-range',
     type=float,
@@ -310,20 +339,12 @@ def distort(ctx, **kwargs):
     ctx.obj['dst_path'] = kwargs['destination_dir']
     ctx.obj['image_resize'] = kwargs['dim']
     ctx.obj['to_read'] = utils.find_filenames(ctx.obj['src_path'])
-    """ctx.obj['to_write'] = utils.get_filenames(
-        ctx.obj['dst_path'],
-        len(ctx.obj['to_read']),
-        overwrite=kwargs['overwrite']
-    )"""
     ctx.obj['to_write'] = utils.remap_filenames(
         ctx.obj['to_read'], ctx.obj['dst_path'])
     ctx.obj['log_params'] = kwargs['log_params']
     ctx.obj['use_params'] = kwargs['use_params']
 
     logging.info("Enqueued {0:d} images.".format(len(ctx.obj['to_read'])))
-    logging.info("Images will be generated starting from index: {0}".format(
-        click.format_filename(ctx.obj['to_write'][0])
-    ))
 
 
 @distort.command()
