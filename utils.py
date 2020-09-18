@@ -188,7 +188,7 @@ def feature_scale(img, a, b, min=None, max=None, type=None):
         ndarray: Array containing normalised image data.
 
     """
-    img = np.asarray(img, dtype=np.float16)
+    img = np.asarray(img, dtype=np.float64)
     if min is None:
         min = np.min(img)
     if max is None:

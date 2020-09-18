@@ -23,6 +23,7 @@ class Generator(object):
 
     def __init__(self):
         self.dim = (400, 400)
+        self.labels = None
         self.params = []
         self.params_current = None
         self._queue = 0

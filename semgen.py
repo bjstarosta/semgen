@@ -12,9 +12,11 @@ University of Strathclyde Physics Department
 import os
 import logging
 import click
+import numpy as np
 
 import generators
 import distorters
+import labels
 import utils
 
 
@@ -202,38 +204,95 @@ def gradient(ctx, **kwargs):
 
 @generate.command()
 @click.option(
-    '-g',
-    '--grey-range',
-    type=float,
-    default=1.,
+    '-n',
+    '--dipole-n',
+    type=(int, int),
+    default=(1, 1),
     show_default=True,
-    help="""Range of greys present in the gradient. Default setting generates
-        a black-white gradient, number lower than "1" causes gradients to be
-        generated with a smaller range between the brightest and darkest
-        colour, with the starting point of the range generated randomly."""
+    help="""Minimum and maximum number of dipoles to generate per image."""
 )
 @click.option(
-    '-l',
-    '--grey-limit',
+    '-o',
+    '--dipole-offset',
     type=(float, float),
-    default=(0., 1.),
+    default=(-1., 1.),
     show_default=True,
-    help="""Sets the darkest and brightest possible grey on a floating point
-        scale. The result image will be losslessly feature scaled to this
-        range.""",
-    metavar="D B"
+    help="""Minimum and maximum offset of generated dipoles.
+        By default covers entire image."""
+)
+@click.option(
+    '-md',
+    '--dipole-min-distance',
+    type=float,
+    default=0.05,
+    show_default=True,
+    help="""Minimum distance between generated dipoles."""
+)
+@click.option(
+    '-r',
+    '--dipole-rot',
+    type=(float, float),
+    default=(0, 2 * np.pi),
+    show_default=True,
+    help="""Minimum and maximum rotation in radians for the generated
+        dipoles."""
+)
+@click.option(
+    '-rd',
+    '--dipole-rot-dev',
+    type=float,
+    default=0.1 * np.pi,
+    show_default=True,
+    help="""Rotation deviation in radians. While the
+        dipole rotation will be propagated to all dipoles on the same
+        image, this parameter allows for a small amount of deviation to
+        be applied to each individual dipole."""
 )
 @click.option(
     '-c',
-    '--clip',
+    '--dipole-contrast',
     type=(float, float),
-    default=(1., 1.),
+    default=(0.05, 0.5),
     show_default=True,
-    help="""Sets the boundaries of a randomised, symmetric colour value clip if
-        the first value is set to be less than the second one. The difference
-        between this option and grey limit is that no feature scaling is
-        applied in this step. Default values mean no clipping is applied.""",
-    metavar="L H"
+    help="""Minimum and maximum dipole contrast.
+        Valid values range from 0 to 1."""
+)
+@click.option(
+    '-m',
+    '--dipole-mask-size',
+    type=(float, float),
+    default=(3, 6),
+    show_default=True,
+    help="""Minimum and maximum dipole mask
+        size. The mask is a 2-dim Gaussian used to extract only the area
+        surrounding the centre of the dipole before placing it on the
+        final generated image. Higher numbers mean a smaller mask.
+        First index should be the smaller number."""
+)
+@click.option(
+    '-ge',
+    '--enable-gradient',
+    is_flag=True,
+    help="""Generates linear gradients as a background if set. If not set,
+        the background will consist of 50% grey."""
+)
+@click.option(
+    '-gl',
+    '--gradient-limit',
+    type=(float, float),
+    default=(-0.5, 0.5),
+    show_default=True,
+    help="""Minimum and maximum gray level limit for background gradients.
+        The value range is -1 to 1 with -1 being black and 1 being white."""
+)
+@click.option(
+    '-gr',
+    '--gradient-range',
+    type=(float, float),
+    default=(0.1, 0.5),
+    show_default=True,
+    help="""Minimum and maximum value of the gradient range, i.e. the range
+        between the darkest and lightest gray used."""
 )
 @click.pass_context
 def dipole(ctx, **kwargs):
@@ -242,10 +301,29 @@ def dipole(ctx, **kwargs):
 
     gen = generators.factory('dipole', 'DipoleGenerator')
     gen.dim = ctx.obj['image_dim']
-    gen.grey_range = kwargs['grey_range']
-    gen.grey_limit = kwargs['grey_limit']
-    gen.clip = kwargs['clip']
+
+    if kwargs['dipole_n'][0] == kwargs['dipole_n'][1]:
+        gen.dipole_n = kwargs['dipole_n'][0]
+    else:
+        gen.dipole_n = kwargs['dipole_n']
+    gen.dipole_offset = kwargs['dipole_offset']
+    gen.dipole_min_d = kwargs['dipole_min_distance']
+    gen.dipole_rot = kwargs['dipole_rot']
+    gen.dipole_rot_dev = kwargs['dipole_rot_dev']
+    gen.dipole_contrast = kwargs['dipole_contrast']
+    gen.dipole_mask_size = kwargs['dipole_mask_size']
+
+    gen.enable_gradient = kwargs['enable_gradient']
+    gen.gradient_limit = kwargs['gradient_limit']
+    gen.gradient_range = kwargs['gradient_range']
+
     gen.queue_images(ctx.obj['image_n'])
+
+    labelfile = labels.LabelFile()
+    r = labelfile.read(ctx.obj['image_path'])
+    if r is False:
+        labelfile.columns = ['n', 'rot']
+    gen.labels = labelfile
 
     prm_log = {
         'generator': 'dipole',
@@ -254,6 +332,7 @@ def dipole(ctx, **kwargs):
     }
 
     generate_images(ctx, gen, prm_log)
+    gen.labels.save(ctx.obj['image_path'])
 
 
 @generate.command()
@@ -389,6 +468,8 @@ def generate_images(ctx, gen, prm_log):
     ) as pbar:
         i = 0
         for im in gen:
+            if gen.labels is not None:
+                gen.labels.add_file(os.path.basename(ctx.obj['to_write'][i]))
             utils.save_image(ctx.obj['to_write'][i], im)
             prm_log['params'].append(gen.params_current)
             i = i + 1
