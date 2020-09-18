@@ -41,8 +41,8 @@ class SEMNoiseGenerator(distorters.Distorter):
             Values that are significant when compared to the dimensions of the
             distorted image will make it more likely that black pixels will
             appear.
-        Q_g (int): Coefficient of the Gaussian noise magnitude.
-        Q_p (int): Coefficient of the Poisson noise magnitude.
+        Q_g (float): Coefficient of the Gaussian noise magnitude.
+        Q_p (float): Coefficient of the Poisson noise magnitude.
 
     """
 

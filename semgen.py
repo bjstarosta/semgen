@@ -427,7 +427,88 @@ def distort(ctx, **kwargs):
 
 
 @distort.command()
-# TODO: Expand options
+@click.option(
+    '-gs',
+    '--gaussian-size',
+    type=int,
+    default=15,
+    show_default=True,
+    help="""Size of the Gaussian convolution matrix. Higher means more
+        blurring. Should be an odd number."""
+)
+@click.option(
+    '-ac',
+    '--astigmatism-coeff',
+    type=float,
+    default=0.95,
+    show_default=True,
+    help="""Astigmatism coefficient. Values different than 1 distort the
+        Gaussian function along either the X or Y axis."""
+)
+@click.option(
+    '-ar',
+    '--astigmatism-rotation',
+    type=float,
+    default=(1 / 4) * np.pi,
+    show_default=True,
+    help="""Astigmatism rotation in radians."""
+)
+@click.option(
+    '-s',
+    '--scan-passes',
+    type=int,
+    default=2,
+    show_default=True,
+    help="""Number of times the vibration function is applied
+        to the image. Higher number means a more diffuse drift effect at
+        the cost of an increase in processing time."""
+)
+@click.option(
+    '-v',
+    '--v-complexity',
+    type=int,
+    default=4,
+    show_default=True,
+    help="""The vibration function is a superposition of
+        random waves. This is the number of waves in this superposition."""
+)
+@click.option(
+    '-A',
+    '--A-limit',
+    type=(float, float),
+    default=(5, 10),
+    show_default=True,
+    help="""Lower and upper limit of the amplitude of the vibration
+        function, or the maximum amount of pixels a drift can occur over."""
+)
+@click.option(
+    '-f',
+    '--f-limit',
+    type=(float, float),
+    default=(20, 25),
+    show_default=True,
+    help="""Lower and upper limit of the frequency of the vibration
+        function, or the width of the drift distortion.
+        Values that are significant when compared to the dimensions of the
+        distorted image will make it more likely that black pixels will
+        appear."""
+)
+@click.option(
+    '-Qg',
+    '--Q-gaussian',
+    type=float,
+    default=0.0129,
+    show_default=True,
+    help="""Coefficient of the Gaussian noise magnitude."""
+)
+@click.option(
+    '-Qp',
+    '--Q-poisson',
+    type=float,
+    default=0.0422,
+    show_default=True,
+    help="""Coefficient of the Poisson noise magnitude."""
+)
 @click.pass_context
 def semnoise(ctx, **kwargs):
     """Simulate time-dependent distortions and noise on an existing image."""
@@ -435,6 +516,16 @@ def semnoise(ctx, **kwargs):
 
     dst = distorters.factory('semnoise', 'SEMNoiseGenerator')
     dst.queue_images(ctx.obj['to_read'])
+
+    dst.gm_size = kwargs['gaussian_size']
+    dst.astigmatism_coeff = kwargs['astigmatism_coeff']
+    dst.astigmatism_rotation = kwargs['astigmatism_rotation']
+    dst.scan_passes = kwargs['scan_passes']
+    dst.v_complexity = kwargs['v_complexity']
+    dst.A_lim = kwargs['A_limit']
+    dst.f_lim = kwargs['f_limit']
+    dst.Q_g = kwargs['Q_gaussian']
+    dst.Q_p = kwargs['Q_poisson']
 
     prm_log = {
         'distorter': 'semnoise',
