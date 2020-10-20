@@ -7,14 +7,14 @@ University of Strathclyde Physics Department
 
 import os
 import re
-import json
-import click
 
 import numpy as np
 import skimage.transform as transform
 import skimage.external.tifffile as tifffile
 
-import semgen
+
+IMG_PTRN = "semgen-{0:04d}"
+IMG_EXT = '.tif'
 
 
 def find_filenames(dir, format=None):
@@ -34,12 +34,12 @@ def find_filenames(dir, format=None):
 
     """
     if format is None:
-        format = semgen.IMG_PTRN
+        format = IMG_PTRN
 
     ret = []
     for root, dirs, files in os.walk(dir):
         for f in files:
-            if not f.endswith(semgen.IMG_EXT):
+            if not f.endswith(IMG_EXT):
                 continue
             d = string_to_dict(f, format)
             if d is None:
@@ -90,16 +90,16 @@ def get_filenames(dir, n, format=None, overwrite=False):
 
     """
     if format is None:
-        format = semgen.IMG_PTRN
+        format = IMG_PTRN
 
-    format = format + semgen.IMG_EXT
+    format = format + IMG_EXT
     if overwrite is True:
         return _get_filenames(dir, n, 0, format)
 
     i = 0
     for root, dirs, files in os.walk(dir):
         for f in files:
-            if not f.endswith(semgen.IMG_EXT):
+            if not f.endswith(IMG_EXT):
                 continue
             d = string_to_dict(f, format)
             j = int(d['0'])
@@ -139,36 +139,6 @@ def string_to_dict(string, pattern):
     values = list(values.groups())
     keys = re.findall(r'{(.+?)(?:\:.+)}', pattern)
     return dict(zip(keys, values))
-
-
-def read_params(dir):
-    """Read a simulation parameter file and transform it to dict format.
-
-    Args:
-        dir (str): Directory to find the parameter file in.
-            Parameter filename is constant, as set in semgen.py.
-
-    Returns:
-        dict: Simulation parameter data.
-
-    """
-    with click.open_file(os.path.join(dir, semgen.PARAM_FILE), 'r') as f:
-        data = json.load(f)
-    return data
-
-
-def write_params(dir, data):
-    """Save a dictionary of simulation parameters to a JSON file.
-
-    Args:
-        dir (str): Directory to save the parameter file in.
-            Parameter filename is constant, as set in semgen.py.
-        data (dict): Simulation parameter data.
-
-    """
-    data['_version'] = semgen.VERSION
-    with click.open_file(os.path.join(dir, semgen.PARAM_FILE), 'w') as f:
-        json.dump(data, f, sort_keys=True, indent=4)
 
 
 def feature_scale(img, a, b, min=None, max=None, type=None):

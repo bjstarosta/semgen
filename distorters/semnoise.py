@@ -60,10 +60,18 @@ class SEMNoiseGenerator(distorters.Distorter):
         self.Q_p = 0.0422
         # self.Q_g = 0.0720
         # self.Q_p = 0.0164
+        self._rs = None
 
         self.debug = {}
 
-    def distort(self, image):
+    def generate_params(self):
+        self._rs = np.random.RandomState()
+        return {}
+
+    def process(self, task):
+        self._rs = np.random.RandomState()
+        image = task.image
+
         # Out-of-focus effects (gaussian blur with astigmatism)
         logging.debug(
             ("Focus component: gm size={0},"
@@ -164,7 +172,8 @@ class SEMNoiseGenerator(distorters.Distorter):
         self.debug['xv'] = xv
         self.debug['yv'] = yv
 
-        return image.astype('uint8')
+        task.image = image.astype('uint8')
+        return task
 
     def gaussian_matrix(self,
     sigma=1, domain=3, step=5, s=1, phi_s=0, norm=False):
@@ -232,13 +241,13 @@ class SEMNoiseGenerator(distorters.Distorter):
         y_v = 0
         for i in range(0, sn):
             x_v = x_v + v(t,
-                np.random.uniform(A_lim[0], A_lim[1]),
-                np.random.uniform(f_lim[0], f_lim[1]),
-                np.random.uniform(0, 2 * np.pi))
+                self._rs.uniform(A_lim[0], A_lim[1]),
+                self._rs.uniform(f_lim[0], f_lim[1]),
+                self._rs.uniform(0, 2 * np.pi))
             y_v = y_v + v(t,
-                np.random.uniform(A_lim[0], A_lim[1]),
-                np.random.uniform(f_lim[0], f_lim[1]),
-                np.random.uniform(0, 2 * np.pi))
+                self._rs.uniform(A_lim[0], A_lim[1]),
+                self._rs.uniform(f_lim[0], f_lim[1]),
+                self._rs.uniform(0, 2 * np.pi))
 
         return x_v, y_v
 
@@ -269,7 +278,7 @@ class SEMNoiseGenerator(distorters.Distorter):
         """
         fn = np.vectorize(
             lambda x: x + ((gaussian_c + (poisson_c * np.sqrt(x)))
-                * np.random.uniform(-1, 1))
+                * self._rs.uniform(-1, 1))
         )
 
         a = img.max()

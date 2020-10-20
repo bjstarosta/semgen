@@ -66,25 +66,27 @@ class DipoleGenerator(generators.Generator):
 
         self.enable_gradient = True
         self.gradient_limit = (-0.5, 0.5)
-        self.gradient_range = (0.1, 0.5)
+        self.gradient_range = (0.01, 0.5)
 
     def generate_params(self):
+        rs = np.random.RandomState()
+
         if isinstance(self.dipole_n, int):
             n_ = self.dipole_n
         else:
-            n_ = np.random.randint(self.dipole_n[0], self.dipole_n[1])
+            n_ = rs.randint(self.dipole_n[0], self.dipole_n[1])
 
         p = {
             'n': n_,
-            'rot': np.random.uniform(self.dipole_rot[0], self.dipole_rot[1]),
+            'rot': rs.uniform(self.dipole_rot[0], self.dipole_rot[1]),
             'rot_dev': self.dipole_rot_dev,
             'dipoles': []
         }
 
         if self.enable_gradient is True:
-            grad_range = np.random.uniform(
+            grad_range = rs.uniform(
                 self.gradient_range[0], self.gradient_range[1])
-            grad_start = np.random.uniform(
+            grad_start = rs.uniform(
                 self.gradient_limit[0], self.gradient_limit[1] - grad_range)
             grad_end = grad_start + grad_range
             p['gradient'] = (grad_start, grad_end)
@@ -95,9 +97,9 @@ class DipoleGenerator(generators.Generator):
             # test for minimum distance
             while True:
                 offset = (
-                    np.random.uniform(
+                    rs.uniform(
                         self.dipole_offset[0], self.dipole_offset[1]),
-                    np.random.uniform(
+                    rs.uniform(
                         self.dipole_offset[0], self.dipole_offset[1]))
 
                 ok = True
@@ -111,24 +113,23 @@ class DipoleGenerator(generators.Generator):
 
             p['dipoles'].append({
                 'offset': offset,
-                'rot': np.random.uniform(
+                'rot': rs.uniform(
                     p['rot'] - p['rot_dev'], p['rot'] + p['rot_dev']),
-                'contrast': np.random.uniform(
+                'contrast': rs.uniform(
                     self.dipole_contrast[0], self.dipole_contrast[1]),
-                'mask_size': np.random.uniform(
+                'mask_size': rs.uniform(
                     self.dipole_mask_size[0], self.dipole_mask_size[1])
             })
 
         return p
 
-    def generate(self):
-        p = self.params_current
+    def process(self, task):
+        p = task.params
 
-        _debugstr = "Params: n={0}, angle={1:.3f}rad ({2:.3f}deg), "\
-            "angle dev={3:.3f}rad ({4:.3f}deg)"
-        logging.debug(_debugstr.format(p['n'],
+        logging.debug("Params: n={0}, angle={1:.3f}rad ({2:.3f}deg), "
+            "angle dev={3:.3f}rad ({4:.3f}deg)",
             p['rot'], 180 * p['rot'] / np.pi,
-            p['rot_dev'], 180 * p['rot_dev'] / np.pi))
+            p['rot_dev'], 180 * p['rot_dev'] / np.pi)
 
         dim_xy = (self.dim[1], self.dim[0])
 
@@ -148,11 +149,10 @@ class DipoleGenerator(generators.Generator):
             im = im + gen_
 
         im = np.clip(im, -1, 1)
-        im = utils.feature_scale(im, 0, 255, -1., 1., 'uint8')
 
-        if self.labels is not None:
-            self.labels.add_label([p['n'], p['rot']])
-        return im
+        task.image = utils.feature_scale(im, 0, 255, -1., 1., 'uint8')
+        task.labels = [p['n'], p['rot']]
+        return task
 
     def _draw_dipole(self, dim, rot, offset=(0, 0), pow=1):
         """Calculate the dipole equation in 2-dim and return result as matrix.

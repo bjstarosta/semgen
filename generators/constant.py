@@ -27,11 +27,15 @@ class ConstantGenerator(generators.Generator):
         self.grey_limit = (0., 1.)
 
     def generate_params(self):
-        return {}
+        rs = np.random.RandomState()
+        p = {
+            'range': rs.uniform(self.grey_limit[0], self.grey_limit[1])
+        }
+        return p
 
-    def generate(self):
-        rn = np.random.uniform(self.grey_limit[0], self.grey_limit[1])
-        f = np.ones(self.dim) * rn
+    def process(self, task):
+        p = task.params
+        f = np.ones(self.dim) * p['range']
 
-        im = utils.feature_scale(f, 0, 255, 0., 1., 'uint8')
-        return im
+        task.image = utils.feature_scale(f, 0, 255, 0., 1., 'uint8')
+        return task

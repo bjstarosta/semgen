@@ -123,6 +123,11 @@ class LabelFile(object):
             None
 
         """
+        out = []
+        for i, row in enumerate(self.labels):
+            out.append([self.files[i]] + row)
+        out = sorted(out, key=lambda k: k[0])
+
         fpath = os.path.join(path, self.filename)
         with open(fpath, mode='w') as f:
             w = csv.writer(f,
@@ -130,5 +135,5 @@ class LabelFile(object):
                 quotechar='"',
                 quoting=csv.QUOTE_MINIMAL)
             w.writerow(self.columns)
-            for i, row in enumerate(self.labels):
-                w.writerow([self.files[i]] + row)
+            for row in out:
+                w.writerow(row)

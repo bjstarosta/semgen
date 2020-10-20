@@ -1,10 +1,6 @@
 # -*- coding: utf-8 -*-
 """SEMGen - SEM synthetic image generator.
 
-Simulation code is based primarily off of independent research conducted by
-other teams. This package in particular owes a lot to Cizmar et al (2008) for
-it's implementation of the gold on carbon generator and the SEM distortion.
-
 Author: Bohdan Starosta
 University of Strathclyde Physics Department
 """
@@ -17,12 +13,11 @@ import numpy as np
 import generators
 import distorters
 import labels
+import params
 import utils
 
 
-VERSION = 0.1
-IMG_PTRN = "semgen-{0:04d}"
-IMG_EXT = '.tif'
+VERSION = 0.2
 PARAM_FILE = 'semgen-prm.txt'
 
 
@@ -46,6 +41,13 @@ PARAM_FILE = 'semgen-prm.txt'
     is_flag=True,
     help="""Displays a progress bar."""
 )
+@click.option(
+    '-t',
+    '--threads',
+    type=int,
+    default=1,
+    help="""Number of threads to use."""
+)
 @click.pass_context
 def main(ctx, **kwargs):
     """Generate new images or transform existing images with SEM distortion."""
@@ -62,6 +64,7 @@ def main(ctx, **kwargs):
     ctx.obj['quiet'] = kwargs['quiet']
     ctx.obj['verbose'] = kwargs['verbose']
     ctx.obj['pbar'] = kwargs['progress_bar']
+    ctx.obj['threads'] = kwargs['threads']
 
 
 @main.group()
@@ -115,16 +118,17 @@ def generate(ctx, **kwargs):
     Output format will be TIFF, and generated images will have sequential
     names.
     """
-    ctx.obj['image_path'] = kwargs['destination_dir']
+    ctx.obj['dst_path'] = kwargs['destination_dir']
     ctx.obj['image_dim'] = kwargs['dim']
     ctx.obj['image_n'] = kwargs['number']
     ctx.obj['to_write'] = utils.get_filenames(
-        ctx.obj['image_path'],
+        ctx.obj['dst_path'],
         ctx.obj['image_n'],
         overwrite=kwargs['overwrite']
     )
     ctx.obj['log_params'] = kwargs['log_params']
     ctx.obj['use_params'] = kwargs['use_params']
+    ctx.obj['overwrite'] = kwargs['overwrite']
 
     logging.info("Enqueued {0:d} images.".format(ctx.obj['image_n']))
     logging.info("Images will be generated starting from index: {0}".format(
@@ -145,20 +149,14 @@ def generate(ctx, **kwargs):
 @click.pass_context
 def constant(ctx, **kwargs):
     """Generate gradient images."""
-    logging.info("Generator: constant")
+    ctx.obj['prc_id'] = 'constant'
+    logging.info("Generator: " + ctx.obj['prc_id'])
 
-    gen = generators.factory('constant', 'ConstantGenerator')
+    gen = generators.factory(ctx.obj['prc_id'])
     gen.dim = ctx.obj['image_dim']
     gen.grey_limit = kwargs['grey_limit']
-    gen.queue_images(ctx.obj['image_n'])
 
-    prm_log = {
-        'generator': 'constant',
-        'global': {},  # TODO: dump generator class properties into this
-        'params': []
-    }
-
-    generate_images(ctx, gen, prm_log)
+    process_images(ctx, gen)
 
 
 @generate.command()
@@ -185,21 +183,15 @@ def constant(ctx, **kwargs):
 @click.pass_context
 def gradient(ctx, **kwargs):
     """Generate gradient images."""
-    logging.info("Generator: gradient")
+    ctx.obj['prc_id'] = 'gradient'
+    logging.info("Generator: " + ctx.obj['prc_id'])
 
-    gen = generators.factory('gradient', 'GradientGenerator')
+    gen = generators.factory(ctx.obj['prc_id'])
     gen.dim = ctx.obj['image_dim']
     gen.grey_range = kwargs['grey_range']
     gen.grey_limit = kwargs['grey_limit']
-    gen.queue_images(ctx.obj['image_n'])
 
-    prm_log = {
-        'generator': 'gradient',
-        'global': {},  # TODO: dump generator class properties into this
-        'params': []
-    }
-
-    generate_images(ctx, gen, prm_log)
+    process_images(ctx, gen)
 
 
 @generate.command()
@@ -297,11 +289,11 @@ def gradient(ctx, **kwargs):
 @click.pass_context
 def dipole(ctx, **kwargs):
     """Generate dipole-like images."""
-    logging.info("Generator: dipole")
+    ctx.obj['prc_id'] = 'dipole'
+    logging.info("Generator: " + ctx.obj['prc_id'])
 
-    gen = generators.factory('dipole', 'DipoleGenerator')
+    gen = generators.factory(ctx.obj['prc_id'])
     gen.dim = ctx.obj['image_dim']
-
     if kwargs['dipole_n'][0] == kwargs['dipole_n'][1]:
         gen.dipole_n = kwargs['dipole_n'][0]
     else:
@@ -317,22 +309,41 @@ def dipole(ctx, **kwargs):
     gen.gradient_limit = kwargs['gradient_limit']
     gen.gradient_range = kwargs['gradient_range']
 
-    gen.queue_images(ctx.obj['image_n'])
-
     labelfile = labels.LabelFile()
-    r = labelfile.read(ctx.obj['image_path'])
-    if r is False:
+    r = labelfile.read(ctx.obj['dst_path'])
+    if r is True and ctx.obj['overwrite'] is True:
+        labelfile.empty()
+    if r is False or ctx.obj['overwrite'] is True:
         labelfile.columns = ['n', 'rot']
-    gen.labels = labelfile
 
-    prm_log = {
-        'generator': 'dipole',
-        'global': {},  # TODO: dump generator class properties into this
-        'params': []
-    }
+    process_images(ctx, gen, labelfile)
 
-    generate_images(ctx, gen, prm_log)
-    gen.labels.save(ctx.obj['image_path'])
+
+@generate.command()
+@click.option(
+    '-p',
+    '--params',
+    required=True,
+    type=click.Path(exists=True, file_okay=False, readable=True),
+    help="""Param file to use to generate the segmentation."""
+)
+@click.pass_context
+def dipole_labels(ctx, **kwargs):
+    """Generate segmentations for existing dipole-like images."""
+    ctx.obj['prc_id'] = 'dipole_labels'
+    logging.info("Generator: " + ctx.obj['prc_id'])
+
+    gen = generators.factory(ctx.obj['prc_id'])
+    gen.dim = ctx.obj['image_dim']
+
+    dipole_params = params.ParamFile(ctx.obj['prc_id'])
+    dipole_params.read(kwargs['params'])
+    gen.dipole_params = list(dipole_params)
+    gen.point_size = int(dipole_params.data['global']['dipole_mask_size'][0])
+
+    ctx.obj['log_params'] = False  # no point logging params for this
+
+    process_images(ctx, gen)
 
 
 @generate.command()
@@ -348,19 +359,13 @@ def dipole(ctx, **kwargs):
 @click.pass_context
 def gold(ctx, **kwargs):
     """Generate a gold on carbon SEM test case image."""
-    logging.info("Generator: gold-on-carbon SEM test sample")
+    ctx.obj['prc_id'] = 'goldoncarbon'
+    logging.info("Generator: " + ctx.obj['prc_id'])
 
-    gen = generators.factory('goldoncarbon', 'GoldOnCarbonGenerator')
+    gen = generators.factory(ctx.obj['prc_id'])
     gen.dim = ctx.obj['image_dim']
-    gen.queue_images(ctx.obj['image_n'])
 
-    prm_log = {
-        'generator': 'gold',
-        'global': {},  # TODO: dump generator class properties into this
-        'params': []
-    }
-
-    generate_images(ctx, gen, prm_log)
+    process_images(ctx, gen)
 
 
 @main.group()
@@ -416,10 +421,14 @@ def distort(ctx, **kwargs):
     """
     ctx.obj['src_path'] = kwargs['source_dir']
     ctx.obj['dst_path'] = kwargs['destination_dir']
-    ctx.obj['image_resize'] = kwargs['dim']
+    if kwargs['dim'] == (0, 0):
+        ctx.obj['image_resize'] = None
+    else:
+        ctx.obj['image_resize'] = kwargs['dim']
     ctx.obj['to_read'] = utils.find_filenames(ctx.obj['src_path'])
     ctx.obj['to_write'] = utils.remap_filenames(
         ctx.obj['to_read'], ctx.obj['dst_path'])
+    ctx.obj['image_n'] = len(ctx.obj['to_read'])
     ctx.obj['log_params'] = kwargs['log_params']
     ctx.obj['use_params'] = kwargs['use_params']
 
@@ -512,45 +521,64 @@ def distort(ctx, **kwargs):
 @click.pass_context
 def semnoise(ctx, **kwargs):
     """Simulate time-dependent distortions and noise on an existing image."""
-    logging.info("Distorter: SEM noise generator")
+    ctx.obj['prc_id'] = 'semnoise'
+    logging.info("Distorter: " + ctx.obj['prc_id'])
 
-    dst = distorters.factory('semnoise', 'SEMNoiseGenerator')
-    dst.queue_images(ctx.obj['to_read'])
-
+    dst = distorters.factory(ctx.obj['prc_id'])
     dst.gm_size = kwargs['gaussian_size']
     dst.astigmatism_coeff = kwargs['astigmatism_coeff']
     dst.astigmatism_rotation = kwargs['astigmatism_rotation']
     dst.scan_passes = kwargs['scan_passes']
     dst.v_complexity = kwargs['v_complexity']
-    dst.A_lim = kwargs['A_limit']
+    dst.A_lim = kwargs['a_limit']
     dst.f_lim = kwargs['f_limit']
-    dst.Q_g = kwargs['Q_gaussian']
-    dst.Q_p = kwargs['Q_poisson']
+    dst.Q_g = kwargs['q_gaussian']
+    dst.Q_p = kwargs['q_poisson']
 
-    prm_log = {
-        'distorter': 'semnoise',
-        'global': {},  # TODO: dump generator class properties into this
-        'params': []
-    }
-
-    distort_images(ctx, dst, prm_log)
+    process_images(ctx, dst)
 
 
-def generate_images(ctx, gen, prm_log):
-    """Iterate through passed Generator object to generate synthetic images.
+def process_images(ctx, prc, labelfile=None):
+    """Iterate through passed Processor object to operate on/create new images.
 
     This function serves as a controller between the command line and the
-    actual generation code contained in the passed Generator object.
+    actual generation code contained in the passed Processor object.
 
     Args:
         ctx (dict): Context object passed from click.
             Contains parameter/option data passed from the command line.
-        gen (generators.Generator): Generator object to iterate.
-        prm_log (dict): Serialisable object containing parameters required
-            to recreate the currently simulated batch of images.
+        prc (processor.Processor): Processor object to iterate.
 
     """
-    logging.info("Generation begins...")
+    paramfile = params.ParamFile(ctx.obj['prc_id'])
+
+    if ('to_read' in ctx.obj.keys()
+    and isinstance(ctx.obj['to_read'], list)
+    and len(ctx.obj['to_read']) > 0):
+        to_read = ctx.obj['to_read']
+    else:
+        to_read = []
+
+    if ctx.obj['use_params'] is None:
+        paramfile.pack_obj(prc)
+        params_lst = []
+    else:
+        paramfile.read(ctx.obj['use_params'])
+        paramfile.unpack_obj(prc)
+        params_lst = paramfile.get()
+
+    if ('image_resize' in ctx.obj.keys()
+    and ctx.obj['image_resize'] is not None):
+        logging.info("Images will be resized to {0:d}:{1:d} pixels.".format(
+            ctx.obj['image_resize'][0], ctx.obj['image_resize'][1]))
+        resize = ctx.obj['image_resize']
+    else:
+        resize = None
+
+    prc.enqueue(ctx.obj['image_n'], ctx.obj['to_write'], to_read, params_lst)
+
+    logging.info("Generation begins... (using {0} threads)".format(
+        ctx.obj['threads']))
 
     with click.progressbar(
         label='Generating images...',
@@ -558,63 +586,8 @@ def generate_images(ctx, gen, prm_log):
         show_pos=True
     ) as pbar:
         i = 0
-        for im in gen:
-            if gen.labels is not None:
-                gen.labels.add_file(os.path.basename(ctx.obj['to_write'][i]))
-            utils.save_image(ctx.obj['to_write'][i], im)
-            prm_log['params'].append(gen.params_current)
-            i = i + 1
-            # Disable progress bar if verbose or quiet is enabled
-            if (ctx.obj['pbar'] is True
-            and ctx.obj['quiet'] is False
-            and ctx.obj['verbose'] is False):
-                pbar.update(1)
-
-    logging.info("{0:d} images generated in '{1}'.".format(
-        i,
-        click.format_filename(os.path.abspath(ctx.obj['image_path']))
-    ))
-
-    if ctx.obj['log_params'] is True:
-        logging.info("Param file written to '{0}'.".format(
-            click.format_filename(os.path.abspath(ctx.obj['image_path']))
-        ))
-        utils.write_params(ctx.obj['image_path'], prm_log)
-
-
-def distort_images(ctx, dst, prm_log):
-    """Iterate through passed Distorter object to alter images.
-
-    This function serves as a controller between the command line and the
-    actual distortion code contained in the passed Distorter object.
-
-    Args:
-        ctx (dict): Context object passed from click.
-            Contains parameter/option data passed from the command line.
-        gen (distorters.Distorter): Generator object to iterate.
-        prm_log (dict): Serialisable object containing parameters required
-            to recreate the currently simulated batch of images.
-
-    """
-    if ctx.obj['image_resize'] != (0, 0):
-        logging.info("Images will be resized to {0:d}:{1:d} pixels.".format(
-            ctx.obj['image_resize'][0], ctx.obj['image_resize'][1]))
-
-    logging.info("Distortion begins...")
-
-    with click.progressbar(
-        label='Distorting images...',
-        length=len(ctx.obj['to_read']),
-        show_pos=True
-    ) as pbar:
-        i = 0
-        for im in dst:
-            # im = feature_scale(im, 0, 255, 0., 1., 'uint8')
-            if ctx.obj['image_resize'] != (0, 0):
-                im = utils.resize_image(im, ctx.obj['image_resize'])
-
-            utils.save_image(ctx.obj['to_write'][i], im)
-            prm_log['params'].append(dst.params_current)
+        for task in prc.process_all(ctx.obj['threads']):
+            task.complete(paramfile, labelfile, resize)
             i = i + 1
             # Disable progress bar if verbose or quiet is enabled
             if (ctx.obj['pbar'] is True
@@ -631,7 +604,13 @@ def distort_images(ctx, dst, prm_log):
         logging.info("Param file written to '{0}'.".format(
             click.format_filename(os.path.abspath(ctx.obj['dst_path']))
         ))
-        utils.write_params(ctx.obj['dst_path'], prm_log)
+        paramfile.save(ctx.obj['dst_path'])
+
+    if labelfile is not None:
+        logging.info("Label file written to '{0}'.".format(
+            click.format_filename(os.path.abspath(ctx.obj['dst_path']))
+        ))
+        labelfile.save(ctx.obj['dst_path'])
 
 
 if __name__ == '__main__':

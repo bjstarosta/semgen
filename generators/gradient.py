@@ -44,36 +44,40 @@ class GradientGenerator(generators.Generator):
         self.grey_limit = (0., 1.)
 
     def generate_params(self):
+        rs = np.random.RandomState()
+
         p = {
-            'type': np.random.choice(self.types, 1, p=self.types_pr)[0]
+            'type': rs.choice(self.types, 1, p=self.types_pr)[0],
+            'range': self.grey_limit
         }
+
         if p['type'] == 'linear':
-            p['angle'] = np.random.uniform(0, 2 * np.pi)
+            p['angle'] = rs.uniform(0, 2 * np.pi)
         if p['type'] == 'radial':
-            p['origin'] = (np.random.uniform(-1, 1), np.random.uniform(-1, 1))
+            p['origin'] = (rs.uniform(-1, 1), rs.uniform(-1, 1))
+
+        if self.grey_range < 1:
+            q = p['range'][1] - self.grey_range
+            rn = rs.uniform(p['range'][0], q)
+            p['range'] = (rn, rn + self.grey_range)
+
         return p
 
-    def generate(self):
-        p = self.params_current
-
-        range = self.grey_limit
-        if self.grey_range < 1:
-            q = range[1] - self.grey_range
-            rn = np.random.uniform(range[0], q)
-            range = (rn, rn + self.grey_range)
+    def process(self, task):
+        p = task.params
 
         if p['type'] == 'linear':
             logging.debug(
                 "Linear gradient: angle={0:.3f} rad ({1:.3f} deg)".format(
                     p['angle'], 180 * p['angle'] / np.pi))
-            im = self._linear_gradient(self.dim, p['angle'], range)
+            im = self._linear_gradient(self.dim, p['angle'], p['range'])
         if p['type'] == 'radial':
             logging.debug("Radial gradient: origin=x:{0},y:{1}".format(
                 p['origin'][0], p['origin'][1]))
-            im = self._radial_gradient(self.dim, p['origin'], range)
+            im = self._radial_gradient(self.dim, p['origin'], p['range'])
 
-        im = utils.feature_scale(im, 0, 255, 0., 1., 'uint8')
-        return im
+        task.image = utils.feature_scale(im, 0, 255, 0., 1., 'uint8')
+        return task
 
     def _linear_gradient(self, dim, angle=0, range=(0, 1)):
         x = np.linspace(0, 1, dim[0])

@@ -6,7 +6,6 @@ University of Strathclyde Physics Department
 """
 
 import logging
-import multiprocessing
 import numpy as np
 
 import generators
@@ -61,8 +60,6 @@ class GoldOnCarbonGenerator(generators.Generator):
             Depending on the size and number of already generated grains this
             can potentially lead to an infinite loop. Setting this number to
             a finite integer prevents that.
-        n_workers (int): Number of worker processes to spawn during grain
-            drawing.
 
     """
 
@@ -86,7 +83,6 @@ class GoldOnCarbonGenerator(generators.Generator):
         self.bg_fill_offset = 0.1
         self.bg_pm_size = 5
         self.max_grain_candidates = 100
-        self.n_workers = 8
 
         self._margin = 1
         self._step = 7200
@@ -94,29 +90,31 @@ class GoldOnCarbonGenerator(generators.Generator):
         self.debug = {}
 
     def generate_params(self):
+        rs = np.random.RandomState()
+
         # mxs = int((self.grain_fill_k * self.dim[0]) / 175)
         # set by trial and error on a 200x200 image
         mxs = int((self.grain_fill_k * 6) / 2)
         params = {
-            'grain_n': np.random.randint(self.grain_n[0], self.grain_n[1]),
-            'grain_tex': np.random.random_sample((mxs, mxs)),
-            'bg_tex': np.random.random_sample(
+            'grain_n': rs.randint(self.grain_n[0], self.grain_n[1]),
+            'grain_tex': rs.random_sample((mxs, mxs)),
+            'bg_tex': rs.random_sample(
                 (self.bg_pm_size, self.bg_pm_size)),
             'grains': []
         }
         for i in range(0, params['grain_n']):
             params['grains'].append({
-                'x': np.random.randint(0, self.dim[0]),
-                'y': np.random.randint(0, self.dim[1]),
-                'r': np.random.uniform(self.grain_r[0], self.grain_r[1]),
-                'a1': np.random.uniform(self.grain_a1[0], self.grain_a1[1]),
-                'a2': np.random.uniform(self.grain_a2[0], self.grain_a2[1]),
-                'f1': np.random.uniform(self.grain_f1[0], self.grain_f1[1]),
-                'f2': np.random.uniform(self.grain_f2[0], self.grain_f2[1])
+                'x': rs.randint(0, self.dim[0]),
+                'y': rs.randint(0, self.dim[1]),
+                'r': rs.uniform(self.grain_r[0], self.grain_r[1]),
+                'a1': rs.uniform(self.grain_a1[0], self.grain_a1[1]),
+                'a2': rs.uniform(self.grain_a2[0], self.grain_a2[1]),
+                'f1': rs.uniform(self.grain_f1[0], self.grain_f1[1]),
+                'f2': rs.uniform(self.grain_f2[0], self.grain_f2[1])
             })
         return params
 
-    def generate(self):
+    def process(self, task):
         """Generate a visual representation of bright gold grains on carbon.
 
         Output has none of the SEM specific noise or distortion applied to it.
@@ -133,18 +131,20 @@ class GoldOnCarbonGenerator(generators.Generator):
             and a list of parameters used to create the image in its second.
 
         """
+        p = task.params
+
         im = np.zeros((self.dim[1], self.dim[0]))
         grain_mask = np.zeros((self.dim[1], self.dim[0]), dtype="bool")
 
         # Draw grain shapes
         grain_masks = []
         params_cn = []
-        for j in range(0, self.params_current['grain_n']):
+        for j in range(0, p['grain_n']):
             i = j + 1
             if i > self.max_grain_candidates:
                 break
 
-            g = self.params_current['grains'][j]
+            g = p['grains'][j]
 
             logging.debug(
                 "Candidate grain {0}: x={1}, y={2}, r={3:.3f}".format(
@@ -170,17 +170,12 @@ class GoldOnCarbonGenerator(generators.Generator):
         logging.debug(
             "Drawing {0} grains using {1} workers.".format(
                 len(params_cn), self.n_workers))
-        if self.n_workers <= 1:
-            for i in params_cn:
-                im = im + self._draw_grain(i)
-        else:
-            with multiprocessing.Pool(self.n_workers) as pool:
-                for i in pool.map(self._draw_grain, params_cn):
-                    im = im + i
+        for i in params_cn:
+            im = im + self._draw_grain(i)
 
         # Draw grain texture
         logging.debug("Drawing grain texture.")
-        fft = self._fft_texture(self.params_current['grain_tex'])
+        fft = self._fft_texture(p['grain_tex'])
         tx = fft * self.grain_fill_gain
         self.debug['grain_texture'] = tx
         for m in grain_masks:
@@ -188,15 +183,15 @@ class GoldOnCarbonGenerator(generators.Generator):
 
         # Draw background
         logging.debug("Filling background.")
-        fft = self._fft_texture(self.params_current['bg_tex'])
+        fft = self._fft_texture(p['bg_tex'])
         tx = (fft * self.bg_fill_gain) + self.bg_fill_offset
         im = im + np.where(~grain_mask, tx, 0)
 
         # Transform to byte data
         im = np.clip(im, a_min=0., a_max=1.)
-        im = utils.feature_scale(im, 0, 255, 0., 1., 'uint8')
 
-        return im
+        task.image = utils.feature_scale(im, 0, 255, 0., 1., 'uint8')
+        return task
 
     def _draw_grain_mask(self, r, x0, y0, a1, a2, f1, f2):
         """Draws a parametric grain-like shape.
