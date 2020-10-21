@@ -131,8 +131,8 @@ def generate(ctx, **kwargs):
     ctx.obj['overwrite'] = kwargs['overwrite']
 
     logging.info("Enqueued {0:d} images.".format(ctx.obj['image_n']))
-    logging.info("Images will be generated starting from index: {0}".format(
-        click.format_filename(ctx.obj['to_write'][0])
+    logging.info("Images will be generated starting from index: '{0}'".format(
+        click.format_filename(os.path.basename(ctx.obj['to_write'][0]))
     ))
 
 
@@ -142,8 +142,8 @@ def generate(ctx, **kwargs):
     '--grey-limit',
     type=(float, float),
     default=(0., 1.),
-    help="""Sets the darkest and brightest possible grey on a floating point scale.
-        Default: 0 1""",
+    help="""Sets the darkest and brightest possible grey on a floating point
+        scale. Default: 0 1""",
     metavar="D B"
 )
 @click.pass_context
@@ -176,8 +176,8 @@ def constant(ctx, **kwargs):
     '--grey-limit',
     type=(float, float),
     default=(0., 1.),
-    help="""Sets the darkest and brightest possible grey on a floating point scale.
-        Default: 0 1""",
+    help="""Sets the darkest and brightest possible grey on a floating point
+        scale. Default: 0 1""",
     metavar="D B"
 )
 @click.pass_context
@@ -433,6 +433,9 @@ def distort(ctx, **kwargs):
     ctx.obj['use_params'] = kwargs['use_params']
 
     logging.info("Enqueued {0:d} images.".format(len(ctx.obj['to_read'])))
+    logging.info("Images will be generated starting from index: '{0}'".format(
+        click.format_filename(os.path.basename(ctx.obj['to_write'][0]))
+    ))
 
 
 @distort.command()
