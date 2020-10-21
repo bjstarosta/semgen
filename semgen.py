@@ -443,9 +443,10 @@ def distort(ctx, **kwargs):
     ctx.obj['log_params'] = kwargs['log_params']
     ctx.obj['use_params'] = kwargs['use_params']
 
+    s = sorted(ctx.obj['to_write'])
     logging.info("Enqueued {0:d} images.".format(len(ctx.obj['to_read'])))
     logging.info("Images will be generated starting from index: '{0}'".format(
-        click.format_filename(os.path.basename(ctx.obj['to_write'][0]))
+        click.format_filename(os.path.basename(s[0]))
     ))
 
 
@@ -603,7 +604,7 @@ def process_images(ctx, prc, labelfile=None):
         try:
             i = 0
             tasklist, pool = prc.process_all(ctx.obj['threads'])
-            
+
             for task in tasklist:
                 task.complete(paramfile, labelfile, resize)
                 i = i + 1
