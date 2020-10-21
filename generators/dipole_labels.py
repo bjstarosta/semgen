@@ -51,7 +51,7 @@ class DipoleLabelsGenerator(DipoleGenerator):
     def _draw_delaunay(self, im, subdiv):
         trilist = subdiv.getTriangleList()
         r = (0, 0, im.shape[1], im.shape[0])
-        c = 1
+        c = 0.25
 
         for t in trilist:
             pt1 = (t[0], t[1])
@@ -61,13 +61,13 @@ class DipoleLabelsGenerator(DipoleGenerator):
             if (self._in_rect(r, pt1)
             and self._in_rect(r, pt2)
             and self._in_rect(r, pt3)):
-                cv2.line(im, pt1, pt2, c, 1, cv2.LINE_AA, 0)
-                cv2.line(im, pt2, pt3, c, 1, cv2.LINE_AA, 0)
-                cv2.line(im, pt3, pt1, c, 1, cv2.LINE_AA, 0)
+                cv2.line(im, pt1, pt2, c, 2, cv2.LINE_AA, 0)
+                cv2.line(im, pt2, pt3, c, 2, cv2.LINE_AA, 0)
+                cv2.line(im, pt3, pt1, c, 2, cv2.LINE_AA, 0)
 
     def _draw_voronoi(self, im, subdiv):
         (facets, centers) = subdiv.getVoronoiFacetList([])
-        c = 1
+        c = 0.25
 
         for i in range(0, len(facets)):
             ifacet_arr = []
@@ -76,7 +76,7 @@ class DipoleLabelsGenerator(DipoleGenerator):
 
             ifacet = np.array(ifacet_arr, np.int)
             ifacets = np.array([ifacet])
-            cv2.polylines(im, ifacets, True, c, 1, cv2.LINE_AA, 0)
+            cv2.polylines(im, ifacets, True, c, 2, cv2.LINE_AA, 0)
 
     def _in_rect(self, rect, p):
         if (p[0] < rect[0] or p[0] > rect[2]
