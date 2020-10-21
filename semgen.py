@@ -6,7 +6,10 @@ University of Strathclyde Physics Department
 """
 
 import os
+import sys
+import signal
 import logging
+
 import click
 import numpy as np
 
@@ -51,6 +54,14 @@ PARAM_FILE = 'semgen-prm.txt'
 @click.pass_context
 def main(ctx, **kwargs):
     """Generate new images or transform existing images with SEM distortion."""
+    def sigint_h(sig, frame):
+        print("Keyboard interrupt caught. Terminating... (pid: {0})".format(
+            os.getpid()
+        ))
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, sigint_h)
+
     LOG_FORMAT = '[%(levelname)s] %(message)s'
     if kwargs['quiet'] is True:
         LOG_LEVEL = 'ERROR'
@@ -588,15 +599,26 @@ def process_images(ctx, prc, labelfile=None):
         length=ctx.obj['image_n'],
         show_pos=True
     ) as pbar:
-        i = 0
-        for task in prc.process_all(ctx.obj['threads']):
-            task.complete(paramfile, labelfile, resize)
-            i = i + 1
-            # Disable progress bar if verbose or quiet is enabled
-            if (ctx.obj['pbar'] is True
-            and ctx.obj['quiet'] is False
-            and ctx.obj['verbose'] is False):
-                pbar.update(1)
+        pool = None
+        try:
+            i = 0
+            tasklist, pool = prc.process_all(ctx.obj['threads'])
+            
+            for task in tasklist:
+                task.complete(paramfile, labelfile, resize)
+                i = i + 1
+                # Disable progress bar if verbose or quiet is enabled
+                if (ctx.obj['pbar'] is True
+                and ctx.obj['quiet'] is False
+                and ctx.obj['verbose'] is False):
+                    pbar.update(1)
+
+            pool.terminate()
+            pool.join()
+        except KeyboardInterrupt:
+            if pool is not None:
+                pool.terminate()
+                pool.join()
 
     logging.info("{0:d} images generated in '{1}'.".format(
         i,

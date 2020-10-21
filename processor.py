@@ -43,8 +43,11 @@ class Processor(object):
     def __exit__(self, type, value, traceback):
         pass
 
-    def get(self, task):
-        """Pop the first element off of the queue, process and return it.
+    def run(self, task):
+        """Process passed task and return it.
+
+        Args:
+            task (processor.ProcessorTask): Uncompleted task object.
 
         Returns:
             processor.ProcessorTask: Completed task object.
@@ -148,13 +151,14 @@ class Processor(object):
 
         Returns:
             list: List of ProcessorTask objects. Iterable before completion.
+            multiprocessing.Pool: The pool object itself.
 
         """
         pool = mp.Pool(processes=n_proc)
         return pool.imap_unordered(
-            func=self.get,
+            func=self.run,
             iterable=self._queue
-        )
+        ), pool
 
     def _getpx(self, im, x, y):
         if x < 0 or x >= im.shape[1] or y < 0 or y >= im.shape[0]:
