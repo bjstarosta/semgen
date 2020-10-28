@@ -10,7 +10,11 @@ import re
 
 import numpy as np
 import skimage.transform as transform
-import skimage.external.tifffile as tifffile
+
+try:
+    import skimage.external.tifffile as tifffile
+except ImportError:
+    import tifffile
 
 
 IMG_PTRN = "semgen-{0:04d}"
