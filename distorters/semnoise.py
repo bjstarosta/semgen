@@ -108,6 +108,11 @@ class SEMNoiseGenerator(distorters.Distorter):
         yv_f = np.floor(yv)
         yv_c = np.ceil(yv)
 
+        def bi_px_newvals(x, y, coords):
+            return (np.array([[1 - x, x]])
+                @ coords
+                @ np.array([[1 - y, y]]).T)[0][0]
+
         it = np.nditer(image_, flags=['multi_index'])
         for j in range(0, self.scan_passes):
             logging.debug("- Raster scan pass {0}".format(j + 1))
@@ -145,17 +150,16 @@ class SEMNoiseGenerator(distorters.Distorter):
                         self._getpx(image_, xsm[1], ysm[1])]
                     ])
 
-                    def px_(x, y):
-                        return (np.array([[1 - x, x]])
-                            @ coords
-                            @ np.array([[1 - y, y]]).T)[0][0]
-
                     if None not in coords:
-                        # print(px_(0, 0))
-                        self._setpx(image, xsm[0], ysm[0], px_(0, 0))
-                        self._setpx(image, xsm[1], ysm[0], px_(1, 0))
-                        self._setpx(image, xsm[0], ysm[1], px_(0, 1))
-                        self._setpx(image, xsm[1], ysm[1], px_(1, 1))
+                        # print(bi_px_newvals(0, 0))
+                        self._setpx(image, xsm[0], ysm[0],
+                            bi_px_newvals(0, 0, coords))
+                        self._setpx(image, xsm[1], ysm[0],
+                            bi_px_newvals(1, 0, coords))
+                        self._setpx(image, xsm[0], ysm[1],
+                            bi_px_newvals(0, 1, coords))
+                        self._setpx(image, xsm[1], ysm[1],
+                            bi_px_newvals(1, 1, coords))
 
                 i = i + 1
 
