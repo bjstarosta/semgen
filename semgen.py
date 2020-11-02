@@ -560,7 +560,7 @@ def process_images(ctx, prc, labelfile=None):
     actual generation code contained in the passed Processor object.
 
     Args:
-        ctx (dict): Context object passed from click.
+        ctx (object): Context object passed from click.
             Contains parameter/option data passed from the command line.
         prc (processor.Processor): Processor object to iterate.
 
