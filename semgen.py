@@ -21,7 +21,6 @@ import utils
 
 
 VERSION = 0.2
-PARAM_FILE = 'semgen-prm.txt'
 
 
 @click.group()
@@ -129,7 +128,8 @@ def generate(ctx, **kwargs):
     Output format will be TIFF, and generated images will have sequential
     names.
     """
-    if not os.path.exists(os.path.join(kwargs['use_params'], 'params.json')):
+    if (kwargs['use_params'] is not None
+    and not os.path.exists(os.path.join(kwargs['use_params'], 'params.json'))):
         raise click.UsageError(
             "params.json not found in directory '{0}'.".format(
                 ctx.obj['use_params']),
