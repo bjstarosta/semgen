@@ -104,7 +104,7 @@ class ParamFile(object):
             path (str): Directory to find the parameter file in.
 
         """
-        with click.open_file(path, 'r') as f:
+        with click.open_file(os.path.join(path, self.filename), 'r') as f:
             self.data = json.load(f)
 
     def save(self, path):

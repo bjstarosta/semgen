@@ -117,10 +117,10 @@ def main(ctx, **kwargs):
 @click.option(
     '-u',
     '--use-params',
-    type=click.Path(exists=True, dir_okay=False, readable=True),
-    help="""If pointed at a previously generated parameters file, will use
-        it to attempt to exactly recreate those conditions during this
-        batch generation."""
+    type=click.Path(exists=True, file_okay=False, readable=True),
+    help="""If pointed at a previously generated dataset directory, will use
+        the params.json file present within it to attempt to exactly recreate
+        those conditions during this batch generation."""
 )
 @click.pass_context
 def generate(ctx, **kwargs):
@@ -129,6 +129,13 @@ def generate(ctx, **kwargs):
     Output format will be TIFF, and generated images will have sequential
     names.
     """
+    if not os.path.exists(os.path.join(kwargs['use_params'], 'params.json')):
+        raise click.UsageError(
+            "params.json not found in directory '{0}'.".format(
+                ctx.obj['use_params']),
+            ctx=ctx
+        )
+
     ctx.obj['dst_path'] = kwargs['destination_dir']
     ctx.obj['image_dim'] = kwargs['dim']
     ctx.obj['image_n'] = kwargs['number']
