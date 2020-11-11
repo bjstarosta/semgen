@@ -22,6 +22,7 @@ class DipoleLabelsGenerator(DipoleGenerator):
         self.data = None
         self.dipole_params = None
         self.point_size = 5
+        self.voronoi = False
 
     def generate_params(self):
         return {}
@@ -40,7 +41,9 @@ class DipoleLabelsGenerator(DipoleGenerator):
             self._draw_point(im, xy)
             subdiv.insert((xy[0], xy[1]))
             points.append(xy)
-        self._draw_voronoi(im, subdiv)
+
+        if self.voronoi is True:
+            self._draw_voronoi(im, subdiv)
 
         task.image = utils.feature_scale(im, 0, 255, 0., 1., 'uint8')
         return task

@@ -345,6 +345,12 @@ def dipole(ctx, **kwargs):
     type=click.Path(exists=True, file_okay=False, readable=True),
     help="""Param file to use to generate the segmentation."""
 )
+@click.option(
+    '-v',
+    '--voronoi',
+    is_flag=True,
+    help="""If set, a Voronoi triangulation will be applied to the result."""
+)
 @click.pass_context
 def dipole_labels(ctx, **kwargs):
     """Generate segmentations for existing dipole-like images."""
@@ -358,6 +364,7 @@ def dipole_labels(ctx, **kwargs):
     dipole_params.read(kwargs['params'])
     gen.dipole_params = list(dipole_params)
     gen.point_size = int(dipole_params.data['global']['dipole_mask_size'][0])
+    gen.voronoi = kwargs['params']
 
     ctx.obj['log_params'] = False  # no point logging params for this
 
