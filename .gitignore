@@ -1,0 +1,8 @@
+*.tif
+*.tiff
+
+__pycache__
+distorted/
+generated/
+
+test*.py
